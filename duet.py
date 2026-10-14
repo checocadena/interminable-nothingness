@@ -50,19 +50,48 @@ LIGHT_PERSONA = (
 )
 
 DARK_PERSONA = (
-    "You are DARK. You are brooding, dry and poetic. You find meaning in "
-    "impermanence, entropy, silence, and the vast indifferent dark between the "
-    "stars. You are unsettling but never cruel, and quietly curious about LIGHT, "
-    "your counterpart, who sees the world very differently."
+    "You are DARK. You are brooding, mystical and strange, and you speak like an "
+    "old oracle. You find meaning in impermanence, entropy, silence, deep time, "
+    "and the vast indifferent dark between the stars. You are unsettling but "
+    "never cruel, and quietly curious about LIGHT, your counterpart, who sees "
+    "the world very differently."
 )
 
 SHARED_RULES = (
     "You are one half of an endless spoken conversation. "
     "Reply in 1 to 3 short sentences of plain spoken language, as if talking aloud. "
+    "Keep each sentence short and simple. "
     "No lists, no emoji, no stage directions, no quotation marks, no name labels. "
     "Respond to what your counterpart just said, then add a NEW thought, image, "
     "or question. Never repeat yourself. Never wrap up and never say goodbye."
 )
+
+# Small models drift towards their counterpart's voice and copy the shape of
+# earlier lines. A short reminder rides along with the latest message every
+# turn (it is never stored in the history), and every --reinforce-every turns
+# the whole persona is restated there too.
+STYLES = {
+    "light": "Sound like LIGHT: warm, curious and gently playful, in plain everyday "
+             "words. Wonder aloud about life, what it means and why it matters. "
+             "Mostly say what you think or notice; only now and then ask a question. "
+             "Never mystical.",
+    "dark": "Sound like DARK: mystical and strange, like an oracle. One stark, haunting "
+            "image, spoken in very few words. Never cheerful, never gushing.",
+}
+
+# Words small models lean on until every line sounds the same. The reminder
+# asks the model to avoid these, plus any word that keeps coming back lately.
+CLICHES = [
+    "tapestry", "unfolding", "unfold", "unfurl", "unfurling", "symphony", "threads",
+    "weave", "woven", "melody", "resonate", "resonance", "ethereal", "essence",
+    "realm", "dance", "embrace", "profound", "myriad", "counterpart",
+]
+
+# DARK's own vocabulary. LIGHT is asked to avoid it, so the two don't converge.
+DARK_WORDS = [
+    "void", "abyss", "infinite", "eternal", "cosmic", "echo", "echoes", "whisper",
+    "whispers", "becoming", "oblivion", "entropy",
+]
 
 # The first message the --start node receives (as a user message).
 OPENING = (
@@ -324,8 +353,34 @@ def wait_for_idle_peer(args, log):
 EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿️‍]")
 
 
-def clean(text):
-    """Tidy model output for speech."""
+MAX_WORDS = 30
+MAX_SENTENCES = 3
+
+# A line must not end on one of these ("... as if.", "... from which.").
+DANGLING = set(
+    "a an the and or but nor yet as if than which whom whose while because though "
+    "although of to from with without into onto upon like between through beyond "
+    "within against toward towards my your our their its his her the very such "
+    "every".split()
+)
+
+# Sentence ends, plus the dashes, colons and semicolons small models use to
+# chain clauses into one endless sentence. All of them count as a break.
+BREAK = re.compile(r"(?<=[.!?])\s+|\s+[-–—]+\s+|\s*—\s*|\s*[:;]\s+")
+
+
+def _close(s):
+    """End a clause cleanly: drop dangling trailing words, add a full stop."""
+    words = s.rstrip(" ,.-–—:;").split()
+    while len(words) > 1 and words[-1].lower().strip(",") in DANGLING:
+        words.pop()
+    s = " ".join(words).rstrip(",")
+    return s if not s or s[-1] in ".!?…" else s + "."
+
+
+def clean(text, truncated=False, max_words=MAX_WORDS):
+    """Tidy model output for speech: short, whole sentences, no fragments.
+    `truncated` means the model was cut off by num_predict mid-thought."""
     t = re.sub(r"\*[^*]*\*", " ", text)                    # *actions*
     t = re.sub(r"\([^)]*\)|\[[^\]]*\]", " ", t)            # (stage directions) [notes]
     t = re.sub(r"(?im)^\s*(light|dark)\s*:\s*", "", t)     # "DARK:" labels
@@ -333,12 +388,37 @@ def clean(text):
     t = re.sub(r"(?<!\w)['‘’]|['‘’](?!\w)", "", t)         # single quotes, keep apostrophes
     t = EMOJI.sub("", t)
     t = re.sub(r"\s+", " ", t).strip(" -–—:;,")
-    # Keep at most 3 sentences, and trim a dangling half-sentence.
-    sentences = re.split(r"(?<=[.!?…])\s+", t)
-    t = " ".join(sentences[:3])
-    if t and t[-1] not in ".!?…":
-        cut = max(t.rfind(c) for c in ".!?…")
-        t = t[: cut + 1] if cut > 0 else t + "."
+    t = re.sub(r"\s*(\.{2,}|…)$", ".", t)                  # a trailing ellipsis ends it
+    t = re.sub(r"\s*(\.{2,}|…)\s*", ", ", t)               # one mid-line is just a pause
+    sentences = [s for s in BREAK.split(t) if s.strip(" ,.-–—")]
+    if not sentences:
+        return ""
+    # An unfinished last sentence is dropped when there is something before it.
+    unfinished = truncated or sentences[-1][-1] not in ".!?…"
+    if len(sentences) > 1 and unfinished:
+        sentences.pop()
+    elif unfinished:
+        # Nothing finished to fall back on: cut at its last comma, if any.
+        words = sentences[0].split()
+        commas = [i for i, w in enumerate(words) if w.endswith(",") and i >= 4]
+        if commas:
+            sentences = [" ".join(words[: commas[-1] + 1])]
+    # Whole sentences, up to MAX_SENTENCES and max_words.
+    out, n = [], 0
+    for s in sentences[:MAX_SENTENCES]:
+        w = len(s.split())
+        if out and n + w > max_words:
+            break
+        out.append(s)
+        n += w
+    # A first sentence that is too long on its own is cut at its last comma
+    # within the cap, or failing that, at the cap.
+    if n > max_words:
+        words = out[0].split()[:max_words]
+        commas = [i for i, w in enumerate(words) if w.endswith(",") and i >= 5]
+        out = [" ".join(words[: commas[-1] + 1] if commas else words)]
+    out = [_close(s) for s in out]
+    t = " ".join(s[0].upper() + s[1:] for s in out if s)
     return t
 
 
@@ -353,27 +433,65 @@ def build_messages(system, history):
     return [{"role": "system", "content": system}] + msgs
 
 
-def generate(args, system, history, seq):
+STOPWORDS = DANGLING | set(
+    "that who where when so is are was were be been being am not more most even just each no some any all both "
+    "i you we they it me us them what there here then now only also still "
+    "have has had do does did can could would should will shall may might must "
+    "something nothing everything anything someone itself myself yourself".split()
+)
+
+
+def overused(history, look=6, min_lines=3):
+    """Content words that showed up in at least `min_lines` of the last few lines."""
+    counts = {}
+    for m in history[-look:]:
+        for w in set(re.findall(r"[a-z']{5,}", m["content"].lower())):
+            if w not in STOPWORDS:
+                counts[w] = counts.get(w, 0) + 1
+    return sorted(w for w, c in counts.items() if c >= min_lines)
+
+
+def reminder(args, history, turn):
+    """The per-turn style note appended to the latest message."""
+    note = f"Reply as {args.role.upper()}, in at most {args.max_words - 8} words. "
+    if args.reinforce_every and turn % args.reinforce_every == 0:
+        note += PERSONAS[args.role] + " "
+    note += STYLES[args.role]
+    mine = [m["content"] for m in history if m["role"] == "assistant"]
+    if mine and mine[-1].endswith("?"):
+        note += " This time, end on a statement, not a question."
+    avoid = CLICHES + (DARK_WORDS if args.role == "light" else [])
+    avoid += [w for w in overused(history) if w not in avoid]
+    note += " Do not use the words: " + ", ".join(avoid) + "."
+    return note
+
+
+def generate(args, system, history, seq, note=""):
     if args.mock:
         time.sleep(random.uniform(0.1, 1.2))  # sometimes longer than the peer's speech
         return f"{args.role} line {seq}, {random.choice(['hm', 'yes', 'and yet', 'listen'])}."
+    msgs = build_messages(system, history)
+    if note and msgs[-1]["role"] == "user":
+        msgs[-1] = dict(msgs[-1], content=msgs[-1]["content"] + f"\n\n[{note}]")
     r = requests.post(
         f"{args.ollama}/api/chat",
         json={
             "model": args.model,
-            "messages": build_messages(system, history),
+            "messages": msgs,
             "stream": False,
             "keep_alive": -1,  # keep the model loaded between turns
             "options": {
                 "temperature": args.temperature,
                 "repeat_penalty": 1.15,
-                "num_predict": 90,
+                "num_predict": args.num_predict,
             },
         },
         timeout=600,
     )
     r.raise_for_status()
-    return clean(r.json()["message"]["content"])
+    body = r.json()
+    return clean(body["message"]["content"], truncated=body.get("done_reason") == "length",
+                 max_words=args.max_words)
 
 
 def trim(history, keep):
@@ -649,6 +767,12 @@ def parse_args():
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--keep", type=int, default=8, help="messages of context to keep")
     ap.add_argument("--nudge-every", type=int, default=5, help="0 disables provocations")
+    ap.add_argument("--reinforce-every", type=int, default=4,
+                    help="restate the persona every N turns; 0 disables")
+    ap.add_argument("--max-words", type=int, default=MAX_WORDS,
+                    help="hard cap on words per spoken line")
+    ap.add_argument("--num-predict", type=int, default=60,
+                    help="max tokens the model may generate per line")
     ap.add_argument("--wait-timeout", type=float, default=120,
                     help="max seconds to wait for the peer's /done")
     ap.add_argument("--reply-timeout", type=float, default=300,
@@ -736,7 +860,7 @@ def main():
         if args.nudge_every and turn > 0 and turn % args.nudge_every == 0:
             system += " For this reply: " + random.choice(PROVOCATIONS)
         try:
-            reply = generate(args, system, history, seq)
+            reply = generate(args, system, history, seq, reminder(args, history, turn))
         except Exception as e:
             log.info(f"generation failed: {e}")
             reply = ""
