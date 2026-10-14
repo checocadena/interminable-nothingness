@@ -1,0 +1,9 @@
+{
+  "name": "light-and-dark-tools",
+  "private": true,
+  "description": "Video rendering for recorded Light & Dark sessions (not needed to run the installation).",
+  "type": "module",
+  "dependencies": {
+    "puppeteer-core": "23.11.1"
+  }
+}

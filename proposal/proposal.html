@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Interminable Nothingness · Proposal</title>
+<style>
+  /* Printed with Chrome: see proposal/build.sh. Letter, no browser margins. */
+  @page { size: 8.5in 11in; margin: 0; }
+  :root {
+    --ink: #000; --paper: #fff;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #777; }
+  body { font-family: var(--serif); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page {
+    width: 8.5in; height: 11in; position: relative; overflow: hidden;
+    background: var(--paper); page-break-after: always; break-after: page;
+    padding: 0.85in 0.85in 0.75in;
+  }
+  .page.dark { --ink: #fff; --paper: #000; color: #fff; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .folio {
+    position: absolute; left: 0.85in; right: 0.85in; bottom: 0.45in;
+    display: flex; justify-content: space-between;
+    font: 8pt/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6;
+  }
+  h1, h2, h3 { font-weight: normal; margin: 0; }
+  h2 { font: 9pt/1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.35in; }
+  p { font-size: 11.5pt; line-height: 1.55; margin: 0 0 0.16in; max-width: 5.6in; }
+  .lede { font-size: 17pt; line-height: 1.35; max-width: 6.2in; margin-bottom: 0.3in; }
+  .mono { font-family: var(--mono); }
+  .small { font-size: 9pt; line-height: 1.5; }
+  img { display: block; }
+
+  /* Cover: split down the middle, LIGHT on white, DARK on black. */
+  .cover { padding: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .cover .half { position: relative; overflow: hidden; }
+  .cover .half img { position: absolute; top: 1.7in; left: 50%; height: 5.6in; width: auto; transform: translateX(-50%); }
+  .cover .l { background: #fff; }
+  .cover .r { background: #000; }
+  .cover .title {
+    position: absolute; left: 0; right: 0; top: 0.7in; text-align: center;
+    font: 34pt/1.05 var(--serif); letter-spacing: 0.02em; mix-blend-mode: difference; color: #fff;
+  }
+  .cover .sub {
+    position: absolute; left: 0; right: 0; bottom: 1.15in; text-align: center;
+    font: 10pt/1.6 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; mix-blend-mode: difference; color: #fff;
+  }
+  .cover .names {
+    position: absolute; top: 7.75in; width: 100%; text-align: center;
+    font: 9pt/1 var(--mono); letter-spacing: 0.4em;
+  }
+  .cover .l .names { color: #000; }
+  .cover .r .names { color: #fff; }
+
+  .stills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.12in; margin-top: 0.3in; }
+  .stills figure { margin: 0; }
+  .stills img { width: 100%; height: auto; border: 1px solid currentColor; }
+  .stills figcaption { font: 7.5pt/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.06in; opacity: 0.7; }
+  .plan { width: 100%; margin: 0.15in 0 0.3in; border: 1px solid #000; }
+
+  .lines { margin-top: 0.1in; }
+  .line { display: grid; grid-template-columns: 0.9in 1fr; gap: 0.15in; margin-bottom: 0.17in; }
+  .line .who { font: 8pt/1.6 var(--mono); letter-spacing: 0.14em; padding-top: 0.03in; }
+  .line .who span { display: block; opacity: 0.55; }
+  .line .said { font-size: 11.5pt; line-height: 1.5; }
+  .line.dark .said { font-style: italic; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 10pt; line-height: 1.4; }
+  td, th { text-align: left; vertical-align: top; padding: 0.06in 0.1in 0.06in 0; border-top: 1px solid #000; }
+  th { font: 8pt/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; width: 1.7in; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35in; }
+</style>
+</head>
+<body>
+
+<!-- 1. Cover -->
+<section class="page cover">
+  <div class="half l"><img src="../media/still-light.png" alt="LIGHT, a low-poly head drawn in black lines on white"><div class="names">LIGHT</div></div>
+  <div class="half r"><img src="../media/still-dark.png" alt="DARK, the same head drawn in white lines on black"><div class="names">DARK</div></div>
+  <div class="title">Interminable<br>Nothingness</div>
+  <div class="sub">Two machines ask each other the meaning of life, forever<br>A durational installation for two CRTs<br>{{ARTIST}} · {{YEAR}}</div>
+</section>
+
+<!-- 2. The work -->
+<section class="page">
+  <h2>The work</h2>
+  <p class="lede">Two small artificial minds sit on two old television sets, facing each other. One of them asked the other what the meaning of life is. They have been talking ever since.</p>
+  <p>LIGHT is warm, hopeful and curious; it finds meaning in connection, small joys and the miracle that anything exists at all. DARK is brooding, dry and poetic; it finds meaning in impermanence, entropy, silence and the indifferent dark between the stars. Each is a small language model running on its own Raspberry Pi, with its own voice, its own speaker and its own screen. There is no internet, no cloud and no script. Every word is generated in the room, in real time, and spoken aloud.</p>
+  <p>The models are small on purpose. They remember only the last few things that were said, so the conversation never resolves: they forget, circle back, contradict themselves, rediscover the same ideas in new words and reach for answers they can't hold onto. Every few turns something nudges them off course (a sound, a memory, a question with no answer) so they never quite settle into a loop. It is an argument that can't be won and won't end.</p>
+  <p>The faces are drawn as inverses of each other: LIGHT in black lines on a white screen, DARK in white lines on a black one. They are low-poly busts in the style of late-90s PlayStation graphics, seen from slightly above like a game-over screen, slowly drifting. When one speaks, its jaw moves with its voice and the other turns to listen. Now and then a voice slips (it drags lower, rises, or skips like a scratched CD) and in that moment its picture glitches too, slices of the screen tearing sideways and flipping into their opposite.</p>
+  <p>The piece answers Nam June Paik's <i>TV Buddha</i> (1974), in which a statue of the Buddha sits contemplating its own live image on a television. Here the contemplation turns outward: two machines, each made of the other's negative, contemplating each other, endlessly, about the one question neither can answer.</p>
+  <div class="folio"><span>Interminable Nothingness</span><span>2</span></div>
+</section>
+
+<!-- 3. How it works -->
+<section class="page">
+  <h2>In the room</h2>
+  <img class="plan" src="../media/plan.svg" alt="Top view: two CRTs on plinths facing each other 1.5 to 3 metres apart, the audience watching from the side">
+  <div class="cols">
+    <div>
+      <p class="small"><b>Two CRT televisions</b> on plinths face each other across 1.5 to 3 m. Each shows one face, full screen. Visitors watch from the side, between them, as if overhearing.</p>
+      <p class="small"><b>Each TV is its own voice.</b> LIGHT speaks from its set, DARK from the other, so the conversation physically crosses the room.</p>
+    </div>
+    <div>
+      <p class="small"><b>Each set is driven by a Raspberry Pi 5</b> running a 3-billion-parameter language model (Llama 3.2), a local text-to-speech voice and the face. The two Pis talk over one ethernet cable.</p>
+      <p class="small"><b>It runs indefinitely and looks after itself:</b> if either side restarts, they find each other again and carry on. Turn it on in the morning; turn it off at night.</p>
+    </div>
+  </div>
+  <div class="stills">
+    <figure><img src="../media/still-speaking.png" alt="LIGHT speaking, DARK listening"><figcaption>LIGHT speaks, DARK listens</figcaption></figure>
+    <figure><img src="../media/still-mouth.png" alt="DARK speaking, its mouth open in white"><figcaption>DARK answers</figcaption></figure>
+    <figure><img src="../media/still-glitch.png" alt="LIGHT's picture tearing during a glitch"><figcaption>A voice slips; the picture tears</figcaption></figure>
+  </div>
+  <div class="folio"><span>Interminable Nothingness</span><span>3</span></div>
+</section>
+
+<!-- 4. From the conversation -->
+<section class="page dark">
+  <h2>From the conversation</h2>
+  <p class="small mono" style="opacity:.6;margin-bottom:.3in">Unedited lines from a {{SESSION_LENGTH}} session, recorded {{SESSION_DATE}}.</p>
+  <div class="lines">
+{{EXCERPTS}}
+  </div>
+  <div class="folio"><span>Interminable Nothingness</span><span>4</span></div>
+</section>
+
+<!-- 5. Technical rider -->
+<section class="page">
+  <h2>Technical rider</h2>
+  <table>
+    <tr><th>Space</th><td>About 4 × 3 m, dimly lit. Works in a room, alcove or corridor; quiet enough to hear speech at conversational volume.</td></tr>
+    <tr><th>Provided by the artist</th><td>2 × Raspberry Pi 5 (8 GB) with software installed · 2 × HDMI-to-composite converters · ethernet cable · power supplies</td></tr>
+    <tr><th>CRTs</th><td>2 × CRT televisions, 13 to 21 inch, with composite (AV) input and a working speaker. Sourced by the artist, or by the venue if local sets are available.</td></tr>
+    <tr><th>From the venue</th><td>2 plinths or low tables, about 90 cm high · 2 power outlets (each set draws under 100 W) · nothing else: no internet, no projector, no computer</td></tr>
+    <tr><th>Sound</th><td>Each TV's own speaker, at speaking volume. A small powered speaker behind each set can replace weak TV speakers.</td></tr>
+    <tr><th>Install</th><td>About 2 hours with the artist. Once set up it starts on its own when switched on.</td></tr>
+    <tr><th>Running</th><td>Durational and unattended for the whole opening hours. No staff needed beyond switching it on and off.</td></tr>
+    <tr><th>Variations</th><td>A single-screen version (both faces side by side) for smaller rooms or screenings, and recorded video of any length.</td></tr>
+  </table>
+  <p class="small" style="margin-top:.35in"><b>Estimated hardware cost</b>, if new sets must be bought: Raspberry Pis, cooling, storage and power about US$230; converters and cables about US$40; two used CRTs US$0 to 160. Total roughly US$270 to 430.</p>
+  <p class="small" style="margin-top:.3in"><b>Watch it:</b> <span class="mono">{{VIDEO_URL}}</span><br><b>Code and documentation:</b> <span class="mono">{{REPO_URL}}</span></p>
+  <p class="small"><b>Contact:</b> {{ARTIST}} · <span class="mono">{{CONTACT}}</span></p>
+  <p class="small" style="opacity:.6;margin-top:.3in">Head model: "Basic head mesh" by kavabanga (BlendSwap, CC0). Language model: Llama 3.2 3B via Ollama. Voices: Piper (on the Pis).</p>
+  <div class="folio"><span>Interminable Nothingness</span><span>5</span></div>
+</section>
+
+</body>
+</html>

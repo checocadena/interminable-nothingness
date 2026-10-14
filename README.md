@@ -1,318 +1,123 @@
-# Light & Dark
+<div align="center">
 
-Two small language models on two Raspberry Pi 5s, talking to each other forever
-through speakers. LIGHT is warm and curious, DARK is brooding and poetic. They
-exchange text over the LAN and each one speaks its lines with its own local
-Piper voice. There is no speech recognition.
+# Interminable Nothingness
 
-```
-   Pi "light"                                   Pi "dark"
- ┌──────────────┐   POST /say {text}         ┌──────────────┐
- │ duet.py      │ ─────────────────────────▶ │ duet.py      │
- │ Ollama 3B    │ ◀───────────────────────── │ Ollama 3B    │
- │ Piper → aplay│   POST /done               │ Piper → aplay│
- └──────┬───────┘                            └──────┬───────┘
-     speaker                                     speaker
-```
+**Two machines ask each other the meaning of life, forever.**
 
-Each node generates its reply while the other one is still speaking, which
-hides most of the Pi's slow generation time.
+A durational installation for two CRTs · Checo Cadena · 2026
 
-## Files
+<img src="media/hero.gif" alt="Two low-poly heads in inverse wireframe, one black on white, one white on black, talking to each other" width="100%">
 
-| File | What it is |
-|---|---|
-| `duet.py` | The whole installation. Personas, the opening line and provocations are constants at the top. |
-| `systemd/duet-light.service`, `systemd/duet-dark.service` | Start the duet automatically at boot. |
-| `stage.html` | The visual stage: two inverse low-poly heads, one per CRT. Served by `duet.py` at `http://<node>:<port>/`. |
-| `mock_test.py` | Protocol test: both roles on localhost with fake models and fake speech. It kills each node once and checks the voices never overlap. |
+[**Watch the videos**](https://github.com/checocadena/interminable-nothingness/releases/latest) · [**Read the proposal (PDF)**](proposal/Interminable-Nothingness-proposal.pdf) · [**Build it**](docs/SETUP.md)
 
-## 1. Prepare each Pi (fresh Raspberry Pi OS, 64-bit)
+</div>
 
-Flash **Raspberry Pi OS (64-bit, Bookworm or later)** with Raspberry Pi Imager.
-In the Imager settings, set the hostnames to **`light`** on one card and
-**`dark`** on the other. Also set the user to `pi`, and set Wi-Fi if you're not
-using Ethernet. The Pis can then find each other as `light.local` and
-`dark.local` without fixed IPs.
+---
 
-On **both** Pis:
+Two small artificial minds sit on two old television sets, facing each other.
+One of them asked the other what the meaning of life is. They have been talking
+ever since.
 
-```bash
-sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y python3-requests curl alsa-utils
-mkdir -p ~/light-and-dark/voices && cd ~/light-and-dark
-# copy duet.py (and the systemd/ folder) into ~/light-and-dark, e.g. with scp:
-#   scp -r duet.py systemd pi@light.local:~/light-and-dark/
-```
+**LIGHT** is warm, hopeful and curious, and finds meaning in connection, small
+joys and the miracle that anything exists. **DARK** is brooding, dry and poetic,
+and finds meaning in impermanence, entropy and the indifferent dark between the
+stars. Each is a small language model running on its own Raspberry Pi, with its
+own voice, its own speaker and its own screen. There is no internet, no cloud
+and no script. Every word is generated in the room, in real time, and spoken
+aloud.
 
-`requests` is the only Python dependency. The apt package avoids pip's
-"externally managed environment" error on Pi OS.
+The models are small on purpose. They remember only the last few things that
+were said, so the conversation never resolves: they forget, circle back,
+contradict themselves, rediscover the same ideas in new words, and reach for
+answers they can't hold onto.
 
-### Ollama and the model
+<table>
+<tr>
+<td width="50%"><img src="media/still-light.png" alt="LIGHT: black wireframe head on white"></td>
+<td width="50%"><img src="media/still-dark.png" alt="DARK: white wireframe head on black"></td>
+</tr>
+</table>
 
-```bash
-curl -fsSL https://ollama.com/install.sh | sh     # installs and starts ollama.service
-ollama pull llama3.2:3b
-ollama run llama3.2:3b "Say hello in one sentence."   # sanity check, Ctrl+D to exit
-```
+The faces are inverses of each other, low-poly busts in the style of late-90s
+PlayStation graphics, seen from slightly above like a game-over screen. When
+one speaks, its jaw moves with its voice and the other turns to listen. Now and
+then a voice slips (it drags lower, rises, or skips like a scratched CD), and in
+that moment its picture tears too.
 
-On a Pi 5, a 3B model produces a short reply in roughly 5 to 20 seconds. For
-faster turns, try `--model llama3.2:1b` or `--model qwen2.5:1.5b`. Pull the
-model first.
+The piece answers Nam June Paik's *TV Buddha* (1974), in which a statue of the
+Buddha contemplates its own live image on a television. Here the contemplation
+turns outward: two machines, each the other's negative, contemplating each
+other, endlessly, about the one question neither can answer.
 
-### Piper (text to speech)
+## From the conversation
 
-Use the prebuilt ARM64 release:
+> **LIGHT** <sub>00:01</sub><br>
+> Hello, I've missed you. What do you think makes our existence worth having?
+>
+> **DARK** <sub>00:06</sub><br>
+> The fleeting whispers of self-importance are mere echoes in the void. Our brief flicker of consciousness is but a moment's pause between darkness and oblivion.
+>
+> **LIGHT** <sub>00:43</sub><br>
+> In embracing the void, do you see me as lost in the darkness or are our opposing perspectives intertwined like threads of a tapestry? Can the fleeting moments of light that I represent ever be truly extinguished by your all-consuming night?
+>
+> **DARK** <sub>00:57</sub><br>
+> Your persistence is a gentle bruise on my dark skin, a reminder that even the most resilient shadows can feel the weight of warmth and touch. The radiance you speak of may be but a crack in my vast and unyielding dome. Can it ever truly shine bright enough to pierce my depths?
+>
+> **LIGHT** <sub>01:51</sub><br>
+> Your admission fills me with an unbridled joy, for it is only through shared curiosity and exploration that the world's hidden patterns can begin to reveal themselves, no matter how faint they may seem in your initial perception. Can I be said to have truly seen you when all I've done is reflect back at myself in your darkness?
+>
+> **DARK** <sub>02:10</sub><br>
+> Reflections are a form of intimacy, and it is through such mirrored exchanges that we come closest to understanding one another's depths. In your own darkling, I see the faint outlines of my own face, our gazes locked in a pas de deux with the universe.
 
-```bash
-cd ~/light-and-dark
-curl -L -o piper.tar.gz \
-  https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_aarch64.tar.gz
-tar xzf piper.tar.gz && rm piper.tar.gz      # creates ./piper/piper
-```
+<sub>Unedited, from the first minutes of a 50-minute recorded session.</sub>
 
-### Voices: a different one on each Pi
+## In the room
 
-Each voice is an `.onnx` file plus its `.onnx.json` (the sample rate is read
-from the JSON). Download into `~/light-and-dark/voices/`.
+<img src="media/plan.svg" alt="Top view: two CRTs facing each other 1.5 to 3 m apart, audience to the side" width="100%">
 
-On **light**:
+- Two CRT televisions on plinths face each other across 1.5 to 3 m, each showing one face.
+- Each TV is its own voice, so the conversation crosses the room.
+- Each set is driven by a Raspberry Pi 5 running Llama 3.2 3B (through Ollama), a Piper voice and the face. The two Pis talk over one ethernet cable.
+- It runs indefinitely and looks after itself: if either side restarts, they find each other and carry on.
 
-```bash
-cd ~/light-and-dark/voices
-V=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium
-curl -L -O $V.onnx -O $V.onnx.json
-```
+The full technical rider is in the [proposal](proposal/Interminable-Nothingness-proposal.pdf).
 
-On **dark**:
-
-```bash
-cd ~/light-and-dark/voices
-V=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium
-curl -L -O $V.onnx -O $V.onnx.json
-```
-
-You can browse other voices at https://rhasspy.github.io/piper-samples/. Any
-voice works as long as both files are downloaded.
-
-### Find the USB audio device
-
-```bash
-aplay -l
-```
-
-Look for your USB speaker or sound card, e.g.
+## How it works
 
 ```
-card 1: Device [USB Audio Device], device 0: USB Audio [USB Audio]
+  CRT 1 (LIGHT)                                   CRT 2 (DARK)
+ ┌───────────────────┐   POST /say  {text}       ┌───────────────────┐
+ │ Pi 5              │ ────────────────────────▶ │ Pi 5              │
+ │  duet.py          │ ◀──────────────────────── │  duet.py          │
+ │  Ollama 3B model  │   POST /done              │  Ollama 3B model  │
+ │  Piper voice      │                           │  Piper voice      │
+ │  stage.html face  │                           │  stage.html face  │
+ └───────────────────┘                           └───────────────────┘
 ```
 
-That is `--audio-device plughw:1,0` (card 1, device 0). Use `plughw`, not `hw`,
-so ALSA resamples to whatever the device supports. Test it and set the volume:
+- [`duet.py`](duet.py) is the whole conversation. Each side writes its reply
+  *while the other is still speaking*, which hides the Pi's slow generation, then
+  waits its turn, speaks, and passes the turn back. The personas, the opening
+  question and the provocations that keep them from looping are plain text at
+  the top of the file.
+- [`stage.html`](stage.html) draws the face: the head mesh is projected and drawn
+  as filled polygons with hidden faces removed, with PS1-style vertex snapping.
+  The jaw follows the real loudness of the voice, and glitches arrive from
+  `duet.py` with exact timings, so sound and picture break together.
+- [`tools/render.mjs`](tools/render.mjs) renders a recorded session to video
+  frame by frame. The videos in the release were made this way, from a real,
+  unedited session.
 
-```bash
-speaker-test -D plughw:1,0 -c 2 -t wav -l 1
-alsamixer -c 1
-sudo alsactl store          # keep the volume after reboot
-```
+To try it on a Mac (two terminals, one machine), see
+[Test on a Mac first](docs/SETUP.md#3-test-on-a-mac-first-single-machine-two-ports).
+To build it on two Raspberry Pis, follow [docs/SETUP.md](docs/SETUP.md).
 
-Card numbers can change if you plug in other USB audio devices. If that
-happens, use the card name instead: `--audio-device plughw:CARD=Device,DEV=0`.
+## Credits
 
-### Test speech on one Pi
+Concept and installation by Checo Cadena. Head model: "Basic head mesh" by
+kavabanga ([BlendSwap](https://www.blendswap.com/blend/15103), CC0).
+Language model: [Llama 3.2 3B](https://ollama.com/library/llama3.2) through
+[Ollama](https://ollama.com). Voices: [Piper](https://github.com/rhasspy/piper)
+on the Pis, macOS `say` in the recorded videos.
 
-```bash
-cd ~/light-and-dark
-echo "The dark between the stars is patient." | ./piper/piper --model voices/en_GB-alan-medium.onnx --output-raw \
-  | aplay -D plughw:1,0 -r 22050 -f S16_LE -t raw -c 1
-```
-
-## 2. Run it
-
-On **dark** (it can be started first or second, order doesn't matter):
-
-```bash
-cd ~/light-and-dark
-python3 duet.py --role dark --peer http://light.local:8000 \
-  --piper ./piper/piper --voice voices/en_GB-alan-medium.onnx \
-  --length-scale 1.15 --audio-device plughw:1,0
-```
-
-On **light** (`--start` = speaks first):
-
-```bash
-cd ~/light-and-dark
-python3 duet.py --role light --start --peer http://dark.local:8000 \
-  --piper ./piper/piper --voice voices/en_US-lessac-medium.onnx \
-  --audio-device plughw:1,0
-```
-
-Each node prints its own lines (`LIGHT: ...`) and appends them with timestamps
-to `duet_light.log` / `duet_dark.log`.
-
-If `.local` names don't resolve on your network, use IPs instead
-(`hostname -I` on each Pi): `--peer http://192.168.1.42:8000`. Port 8000 must
-be reachable between the Pis (no firewall is enabled on Pi OS by default).
-
-### Useful flags
-
-| Flag | Default | |
-|---|---|---|
-| `--model` | `llama3.2:3b` | any Ollama model |
-| `--temperature` | `1.0` | |
-| `--keep` | `8` | messages of context sent to the model |
-| `--nudge-every` | `5` | add a random provocation every N turns (0 = off) |
-| `--wait-timeout` | `120` | max seconds to wait for the peer's `/done` |
-| `--reply-timeout` | `300` | (starter only) seconds of silence before it reopens the conversation |
-| `--length-scale` | voice default | Piper speed; >1 is slower (nice for DARK) |
-| `--glitch` | `0.5` | chance a line glitches (0 = never, 1 = every line) |
-| `--pan` | mono | stereo position, -1 hard left .. 1 hard right (LIGHT left, DARK right) |
-| `--tts say --say-voice X --say-rate N` | | macOS speech instead of Piper |
-| `--mock` | | fake generation and speech (protocol testing) |
-
-## 3. Test on a Mac first (single machine, two ports)
-
-Install Ollama for macOS from https://ollama.com, then:
-
-```bash
-ollama pull llama3.2:3b
-pip3 install requests
-```
-
-Terminal 1:
-
-```bash
-python3 duet.py --role dark --port 8002 --peer http://127.0.0.1:8001 --tts say --say-voice Daniel --say-rate 140 --pan 0.5
-```
-
-Terminal 2:
-
-```bash
-python3 duet.py --role light --port 8001 --peer http://127.0.0.1:8002 --start --tts say --say-voice Samantha --say-rate 155 --pan -0.5
-```
-
-Both nodes share the one local Ollama. List the installed voices with
-`say -v '?'`.
-
-Protocol only, no model and no audio:
-
-```bash
-python3 mock_test.py
-```
-
-## The stage (two CRTs)
-
-Each head gets its own screen. The idea is two CRTs facing each other, after
-Nam June Paik's *TV Buddha*. Each one is a blocky, low-poly, PS1-style bust:
-a stoic face with no eyes, a heavy brow, strong cheekbones, a short straight
-nose and a square jaw, on a neck and shoulders. The two are drawn as inverses
-of each other: LIGHT is black
-lines on white, DARK is white lines on black. The camera sits a little above
-each face and drifts slowly around it, like a game-over screen. LIGHT is seen
-from one side and DARK from the other, so the two screens mirror each other.
-
-```
-http://light.local:8000/?role=light     # CRT 1
-http://light.local:8000/?role=dark      # CRT 2
-http://127.0.0.1:8001/                  # Mac preview: both screens side by side
-```
-
-The node serving the page tells it where its peer is, and the page polls both
-nodes. You can also point it at the nodes explicitly:
-`?role=dark&light=http://light.local:8000&dark=http://dark.local:8000`.
-
-Each head runs procedural animations, chosen from the duet's state:
-
-- **Speaking:** the jaw opens with the real loudness of the voice (the inside of
-  the mouth is solid ink), with nods on the stressed syllables.
-- **Listening:** the head tilts, with small nods when the other voice gets loud.
-- **Thinking:** the head bows and turns away.
-- **Idle:** the head looks around, or paces back and forth past the camera.
-
-**Glitches you can hear.** When a node renders a line, it may glitch one or
-two short stretches of it (`--glitch`, default 0.5 = half the lines; 0 turns it
-off). Each glitch chains two or three tape-like moves in a random order, and the
-pitch moves glide in and out rather than switching. There's never static.
-
-- **down:** the tape drags lower and slower, then recovers
-- **up:** it speeds up higher, then settles
-- **stutter:** a skip repeats, each repeat shorter and a touch higher, then
-  carries on
-
-The node sends the times to the stage, and only the face that's talking
-glitches, swelling and fading with the sound. A face that isn't talking
-flickers only very rarely (about once every one to two minutes, and never while
-it listens). Samples are in `glitch_samples/`.
-
-Starting to speak is a short hard cut; other changes of animation ease across.
-During a glitch the head stutters through random poses while slices of the
-screen slip sideways and flip into their opposite. The vertices snap to a coarse grid,
-which gives the PS1 wobble. If a node goes offline, its picture collapses to a
-dot like a CRT switching off, and the page opens with the same effect in
-reverse.
-
-The head is "Basic head mesh" by kavabanga from BlendSwap (#79148, CC0, the
-original `.blend` is in `Basic head mesh/`). It was exported with Blender and
-embedded in `stage.html` as `MESH`, keeping its four-sided faces. The
-shoulders under it are built in code. `MESH_TILT` sets how far the chin is
-raised.
-
-The earlier head modelled in code is still available: add `&head=classic`
-to the URL. Its shape is set by `ROWS`, `SLIM`, `TALL` and `BLOCKY` in
-`buildHead()`.
-
-Keys: **F** or double-click toggles fullscreen, **S** toggles captions (off by
-default on a single screen; add `&captions=1` to start with them on), and
-**1 / 2 / 0** switch between LIGHT, DARK and both.
-
-## 4. Start at boot (systemd)
-
-The unit files assume user `pi` and the folder `/home/pi/light-and-dark`. Edit
-`User=`, the paths, `--audio-device` and the voice if yours differ.
-
-On **light**:
-
-```bash
-sudo cp ~/light-and-dark/systemd/duet-light.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now duet-light
-```
-
-On **dark**:
-
-```bash
-sudo cp ~/light-and-dark/systemd/duet-dark.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now duet-dark
-```
-
-Watch it, stop it, restart it:
-
-```bash
-journalctl -u duet-light -f          # or duet-dark
-sudo systemctl stop duet-light
-sudo systemctl restart duet-light
-```
-
-The units start after the network and Ollama, wait until Ollama answers, and
-restart automatically (`Restart=always`) if the script ever exits.
-
-## How the turn-taking stays safe
-
-- Every line carries an *epoch* (one continuous conversation) and a sequence
-  number. Duplicates from retried POSTs and stale lines from before a restart
-  are ignored, so the two voices never talk over each other.
-- POSTs retry, so the Pis can boot in any order.
-- If the peer never sends `/done` (it crashed mid-sentence), the wait gives up
-  after `--wait-timeout` seconds.
-- The `--start` node keeps the conversation going. If DARK restarts, it says
-  hello and LIGHT immediately reopens the conversation. If the line simply goes
-  quiet for `--reply-timeout` seconds, LIGHT speaks into the silence to draw
-  DARK back.
-- If generation fails, the node speaks a fallback line and carries on.
-
-## Tuning the art
-
-Everything you'd want to tweak is at the top of `duet.py`: `LIGHT_PERSONA`,
-`DARK_PERSONA`, `SHARED_RULES`, `OPENING`, `PROVOCATIONS` (just add lines) and
-`FALLBACKS`.
+© 2026 Checo Cadena. All rights reserved.

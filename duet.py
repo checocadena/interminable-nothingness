@@ -586,14 +586,45 @@ def prepare(args, text, log):
         return None, 0, [0.0] * int(0.07 * len(text) * ENV_HZ), []
 
 
+class Recorder:
+    """--record DIR: saves every line this node speaks (the audio as played,
+    plus its timing, loudness and glitches) and when it was thinking, so a
+    session can be rendered to video afterwards (tools/render.mjs)."""
+
+    def __init__(self, path, role):
+        os.makedirs(path, exist_ok=True)
+        self.dir, self.role = path, role
+        self.f = open(os.path.join(path, f"timeline_{role}.jsonl"), "a", buffering=1)
+
+    def event(self, kind, **data):
+        self.f.write(json.dumps(dict(type=kind, role=self.role, t=round(time.time(), 3), **data)) + "\n")
+
+    def line(self, args, seq, text, audio, start):
+        pcm, rate, env, glitches = audio
+        name = None
+        if pcm is not None:
+            name = f"{self.role}_{int(start * 1000)}.wav"
+            data, channels = (pan_stereo(pcm, args.pan), 2) if args.pan is not None else (pcm, 1)
+            with wave.open(os.path.join(self.dir, name), "wb") as w:
+                w.setnchannels(channels)
+                w.setsampwidth(2)
+                w.setframerate(rate)
+                w.writeframes(data)
+        self.event("speak", seq=seq, text=text, start=round(start, 3), dur=round(len(env) / ENV_HZ, 3),
+                   env=env, env_hz=ENV_HZ, glitches=glitches, audio=name)
+
+
 def speak(args, ch, seq, text, audio, log):
     """Play a prepared line, updating the stage while it plays."""
     pcm, rate, env, glitches = audio
+    start = time.time() + 0.05  # ~player start-up latency
     ch.show = {"state": "speaking", "text": text, "seq": seq, "env": env, "glitches": glitches,
-               "env_start": time.time() + 0.05}  # ~player start-up latency
+               "env_start": start}
+    if args.rec:
+        args.rec.line(args, seq, text, audio, start)
     try:
-        if pcm is None:
-            time.sleep(len(env) / ENV_HZ)  # keep the rhythm going even without audio
+        if pcm is None or args.silent:
+            time.sleep(len(env) / ENV_HZ)  # keep the rhythm going without audio
         else:
             play(args, pcm, rate)
     except Exception as e:
@@ -637,6 +668,10 @@ def parse_args():
     ap.add_argument("--log-dir", default=".")
     ap.add_argument("--mock", action="store_true", help="fake generation and speech")
     ap.add_argument("--trace", action="store_true", help="log speech start/end timings")
+    ap.add_argument("--record", metavar="DIR", default=None,
+                    help="save every spoken line and its timing, for rendering video")
+    ap.add_argument("--silent", action="store_true",
+                    help="don't play audio (keeps real-time pacing; useful with --record)")
     args = ap.parse_args()
     args.peer = args.peer.rstrip("/")
     return args
@@ -645,6 +680,7 @@ def parse_args():
 def main():
     args = parse_args()
     log = Log(args.role, args.log_dir, args.trace)
+    args.rec = Recorder(args.record, args.role) if args.record else None
 
     if not args.mock and args.tts == "piper":
         try:
@@ -694,6 +730,8 @@ def main():
 
         # 2. Generate and render audio, while the peer is (probably) still speaking.
         ch.show = dict(ch.show, state="thinking")
+        if args.rec:
+            args.rec.event("think")
         system = PERSONAS[args.role] + " " + SHARED_RULES
         if args.nudge_every and turn > 0 and turn % args.nudge_every == 0:
             system += " For this reply: " + random.choice(PROVOCATIONS)
@@ -705,6 +743,8 @@ def main():
         reply = reply or random.choice(FALLBACKS[args.role])
         audio = prepare(args, reply, log)
         ch.show = dict(ch.show, state="ready")
+        if args.rec:
+            args.rec.event("ready")
 
         # 3. Wait for the peer to finish talking.
         if seq > 1 and not ch.wait_peer_quiet(args.wait_timeout):

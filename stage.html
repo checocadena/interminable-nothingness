@@ -308,7 +308,7 @@ async function poll(role) {
   setTimeout(() => poll(role), 120);
 }
 
-const speechTime = a => Date.now() / 1000 + a.offset - a.st.env_start;
+const speechTime = a => wallNow() + a.offset - a.st.env_start;
 function levelNow(a) {
   const s = a.st;
   if (!a.ok || !s || s.state !== 'speaking' || !s.env || !s.env.length) return 0;
@@ -489,7 +489,7 @@ function drawPanel(role, X, Y, PW, PH, t) {
 
 let last = performance.now();
 function frame(now) {
-  requestAnimationFrame(frame);   // first, so one bad frame can't stop the show
+  if (!PLAYBACK) requestAnimationFrame(frame);   // first, so one bad frame can't stop the show
   if (canvas.width !== Math.round(innerWidth * (window.devicePixelRatio || 1))) resize();
   if (!W || !H) return;
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -544,9 +544,50 @@ addEventListener('mousemove', () => {
 });
 setTimeout(() => document.getElementById('hint').classList.add('off'), 5000);
 
+// ---------------------------------------------------------------- playback
+// For rendering video from a recorded session (duet.py --record, then
+// tools/render.mjs). The renderer calls loadTimeline() with the recorded
+// events and then renderAt() once per video frame; nothing is polled and the
+// clock only moves when renderAt() is called.
+let PLAYBACK = null;
+function wallNow() { return PLAYBACK ? PLAYBACK.now : Date.now() / 1000; }
+
+window.loadTimeline = events => {
+  const by = { light: [], dark: [] };
+  for (const e of events) by[e.role].push(e);
+  for (const r in by) by[r].sort((x, y) => (x.start ?? x.t) - (y.start ?? y.t));
+  PLAYBACK = { by, now: 0, t0: null };
+  for (const r of ['light', 'dark']) Object.assign(A[r], { ok: true, offset: 0, awake: 1 });
+  document.getElementById('hint').style.display = 'none';
+};
+
+// What a node's /status would have said at time T, rebuilt from its events.
+function statusAt(role, T) {
+  let st = { state: 'idle', seq: 0, text: '', env: [], env_start: 0, env_hz: 20, glitches: [] };
+  for (const e of PLAYBACK.by[role]) {
+    if ((e.start ?? e.t) > T) break;
+    if (e.type === 'think') st = { ...st, state: 'thinking' };
+    else if (e.type === 'ready') st = { ...st, state: 'ready' };
+    else if (e.type === 'speak') {
+      st = T < e.start + e.dur
+        ? { state: 'speaking', seq: e.seq, text: e.text, env: e.env, env_start: e.start, env_hz: e.env_hz, glitches: e.glitches }
+        : { ...st, state: 'idle', seq: e.seq, text: e.text, env: [] };
+    }
+  }
+  return st;
+}
+
+window.renderAt = (T, setView, setCaptions) => {
+  if (setView) view = setView;
+  if (setCaptions !== undefined) captions = setCaptions;
+  if (PLAYBACK.t0 === null) PLAYBACK.t0 = T;
+  PLAYBACK.now = T;
+  for (const r of ['light', 'dark']) A[r].st = statusAt(r, T);
+  frame((T - PLAYBACK.t0) * 1000 + 10000);
+};
+
 resize();
-init();
-requestAnimationFrame(frame);
+if (!params.has('playback')) { init(); requestAnimationFrame(frame); }
 </script>
 </body>
 </html>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="none">
+  <title>Interminable Nothingness: installation plan, top view</title>
+  <rect width="960" height="520" fill="#ffffff"/>
+  <!-- room -->
+  <rect x="40" y="40" width="880" height="440" stroke="#000" stroke-width="2"/>
+  <text x="56" y="66" fill="#000">TOP VIEW · ROOM ~4 × 3 m, DIM</text>
+  <!-- axis between the screens -->
+  <line x1="300" y1="260" x2="660" y2="260" stroke="#000" stroke-dasharray="4 6"/>
+  <text x="430" y="248" fill="#000">1.5–3 m</text>
+  <!-- LIGHT plinth + CRT (white screen, faces right) -->
+  <rect x="160" y="200" width="120" height="120" stroke="#000" stroke-width="2" fill="#fff"/>
+  <rect x="190" y="215" width="80" height="90" stroke="#000" stroke-width="2" fill="#fff"/>
+  <line x1="270" y1="215" x2="270" y2="305" stroke="#000" stroke-width="6"/>
+  <text x="168" y="345" fill="#000">LIGHT · CRT 1</text>
+  <text x="168" y="363" fill="#000">black lines on white</text>
+  <text x="168" y="381" fill="#000">speaks from its own TV</text>
+  <!-- DARK plinth + CRT (black screen, faces left) -->
+  <rect x="680" y="200" width="120" height="120" stroke="#000" stroke-width="2" fill="#000"/>
+  <rect x="690" y="215" width="80" height="90" stroke="#fff" stroke-width="2" fill="#000"/>
+  <line x1="690" y1="215" x2="690" y2="305" stroke="#fff" stroke-width="6"/>
+  <text x="688" y="345" fill="#000">DARK · CRT 2</text>
+  <text x="688" y="363" fill="#000">white lines on black</text>
+  <text x="688" y="381" fill="#000">speaks from its own TV</text>
+  <!-- screens facing each other -->
+  <path d="M 285 260 l 18 -8 v 16 z" fill="#000"/>
+  <path d="M 675 260 l -18 -8 v 16 z" fill="#000"/>
+  <!-- Pis + speakers -->
+  <rect x="120" y="140" width="40" height="26" stroke="#000"/>
+  <text x="120" y="130" fill="#000">Pi 5 + speaker</text>
+  <rect x="800" y="140" width="40" height="26" stroke="#000"/>
+  <text x="760" y="130" fill="#000">Pi 5 + speaker</text>
+  <line x1="160" y1="153" x2="800" y2="153" stroke="#000" stroke-dasharray="2 4"/>
+  <text x="380" y="146" fill="#000">ethernet (no internet needed)</text>
+  <!-- audience -->
+  <path d="M 380 420 q 100 -60 200 0" stroke="#000" stroke-width="2"/>
+  <text x="392" y="452" fill="#000">AUDIENCE · watches from the side</text>
+  <circle cx="420" cy="405" r="6" fill="#000"/>
+  <circle cx="480" cy="392" r="6" fill="#000"/>
+  <circle cx="540" cy="405" r="6" fill="#000"/>
+</svg>
