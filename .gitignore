@@ -1,0 +1,9 @@
+# Conversation logs and recordings (large, regenerate locally)
+*.log
+recordings/
+renders/
+# Python / OS / tooling
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/

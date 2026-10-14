@@ -1,0 +1,24 @@
+[Unit]
+Description=Light & Dark - DARK voice
+Wants=network-online.target ollama.service
+After=network-online.target ollama.service sound.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/light-and-dark
+Environment=PYTHONUNBUFFERED=1
+# Wait (up to ~2 min) until Ollama answers, so the first lines aren't fallbacks.
+ExecStartPre=/bin/sh -c 'for i in $(seq 60); do curl -sf http://localhost:11434/api/tags >/dev/null && exit 0; sleep 2; done; exit 0'
+ExecStart=/usr/bin/python3 /home/pi/light-and-dark/duet.py \
+    --role dark \
+    --peer http://light.local:8000 \
+    --piper /home/pi/light-and-dark/piper/piper \
+    --voice /home/pi/light-and-dark/voices/en_GB-alan-medium.onnx \
+    --length-scale 1.15 \
+    --audio-device plughw:1,0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

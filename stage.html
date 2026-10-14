@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Light &amp; Dark</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b0b; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #hint {
+    position: fixed; left: 12px; bottom: 10px; color: #888; mix-blend-mode: difference;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.08em;
+    transition: opacity 1.5s;
+  }
+  #hint.off { opacity: 0; }
+  body.idlemouse { cursor: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">F FULLSCREEN · S CAPTIONS · 1 LIGHT · 2 DARK · 0 BOTH</div>
+
+<script>
+// Light & Dark stage: two inverse low-poly heads, one per CRT.
+//   http://<node>:<port>/?role=light   LIGHT only (black lines on white)
+//   http://<node>:<port>/?role=dark    DARK only (white lines on black)
+//   http://<node>:<port>/              both side by side (preview)
+// Node URLs can be overridden with ?light=http://...&dark=http://...
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('c');
+const g = canvas.getContext('2d');
+const params = new URLSearchParams(location.search);
+let view = params.get('role') || 'both';
+let captions = params.get('captions') === '1';
+let W = 0, H = 0, DPR = 1;
+
+const INK = {
+  light: { bg: '#ffffff', fg: '0,0,0', solid: '#000000' },
+  dark:  { bg: '#000000', fg: '255,255,255', solid: '#ffffff' },
+};
+const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+// ---------------------------------------------------------------- math
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+const hash = n => { const x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); };
+// Smooth 1D noise in -1..1, for organic idle motion.
+const noise = x => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return (hash(i) * (1 - u) + hash(i + 1) * u) * 2 - 1; };
+
+function rotX(p, a, c) { const s = Math.sin(a), k = Math.cos(a), y = p[1] - c[1], z = p[2] - c[2]; return [p[0], c[1] + y * k - z * s, c[2] + y * s + z * k]; }
+function rotY(p, a, c) { const s = Math.sin(a), k = Math.cos(a), x = p[0] - c[0], z = p[2] - c[2]; return [c[0] + x * k + z * s, p[1], c[2] - x * s + z * k]; }
+function rotZ(p, a, c) { const s = Math.sin(a), k = Math.cos(a), x = p[0] - c[0], y = p[1] - c[1]; return [c[0] + x * k - y * s, c[1] + x * s + y * k, p[2]]; }
+
+// ---------------------------------------------------------------- the head
+// A chunky PS1-style bust: blocky rings of 12 vertices from the crown down
+// through the neck to the shoulders. Stoic face: short straight nose, deep
+// brow, strong cheekbones, square jaw, flap ears, no eyes. Facing +z, y up.
+const N = 12;
+const BLOCKY = 0.8;   // 1 = round cross-sections, lower = squarer
+const SLIM = 0.86;    // width of the whole figure (1 = original)
+const TALL = 1.12;    // height of the whole figure (1 = original)
+const ROWS = [
+  //   y      rx    front back  head (1 = moves with the head, 0 = shoulders)
+  [ 0.80, 0.44, 0.44, 0.52, 1],  // 0 crown (flattened)
+  [ 0.60, 0.56, 0.58, 0.66, 1],  // 1 forehead
+  [ 0.32, 0.58, 0.66, 0.68, 1],  // 2 brow (temples pulled in)
+  [ 0.06, 0.60, 0.62, 0.64, 1],  // 3 eye line (deep blank sockets)
+  [-0.20, 0.60, 0.64, 0.58, 1],  // 4 cheekbones
+  [-0.42, 0.56, 0.60, 0.52, 1],  // 5 upper lip
+  [-0.42, 0.56, 0.60, 0.52, 1],  // 6 lower lip (the jaw starts here)
+  [-0.64, 0.56, 0.56, 0.44, 1],  // 7 jaw corners
+  [-0.84, 0.40, 0.48, 0.34, 1],  // 8 square chin
+  [-0.98, 0.34, 0.26, 0.36, 1],  // 9 under the chin
+  [-1.22, 0.36, 0.32, 0.38, 0.5],// 10 neck
+  [-1.42, 0.50, 0.36, 0.42, 0],  // 11 base of the neck
+  [-1.56, 1.05, 0.42, 0.42, 0],  // 12 trapezius
+  [-1.78, 1.40, 0.50, 0.46, 0],  // 13 shoulders
+  [-2.80, 1.42, 0.52, 0.46, 0],  // 14 chest (runs off the bottom of the screen)
+];
+const MOUTH_COLS = [11, 0, 1];   // columns where the lips can part
+const spow = (v, e) => Math.sign(v) * Math.abs(v) ** e;
+
+function buildHead() {
+  const V = [], jaw = [], head = [], T = [];
+  const idx = [];
+  const vert = (p, j = 0, h = 1) => { jaw.push(j); head.push(h); return V.push(p) - 1; };
+  const top = vert([0, 0.86 * TALL, -0.04]);
+  ROWS.forEach(([y, rx, zf, zb, h], r) => {
+    idx[r] = [];
+    for (let j = 0; j < N; j++) {
+      // The lower lip shares vertices with the upper lip except at the mouth.
+      if (r === 6 && !MOUTH_COLS.includes(j)) { idx[r][j] = idx[5][j]; continue; }
+      const th = j / N * TAU, c = Math.cos(th);
+      let x = rx * spow(Math.sin(th), BLOCKY), z = (c > 0 ? zf : zb) * spow(c, BLOCKY), yy = y;
+      const front = j === 0, near = j === 1 || j === 11, side = j === 2 || j === 10;
+      if (r === 2 && (near || front)) z += 0.09;            // heavy brow ridge
+      if (r === 3 && near) { z -= 0.2; x *= 0.92; }         // deep sockets, no eyes
+      if (r === 3 && front) z += 0.06;                      // nose bridge
+      if (r === 4 && front) { z = 0.84; yy = -0.24; }       // short straight nose
+      if (r === 4 && near) { x *= 0.86; z -= 0.08; }        // hollow under the eyes
+      if (r === 4 && side) { x *= 1.14; z += 0.12; }        // strong cheekbones (front only)
+      if (r === 5 && side) { x *= 0.9; z -= 0.04; }         // cheeks fall in below them
+      if ((r === 5 || r === 6) && near) { x *= 0.6; z += 0.12; }  // narrow, straight mouth
+      if (r === 7 && side) { x *= 1.12; z += 0.02; }        // square jaw
+      if (r === 8 && (front || near)) { z += 0.04; yy -= 0.02; }  // flat, broad chin
+      if (r === 6 && front) yy -= 0.012;
+      idx[r][j] = vert([x * SLIM, yy * TALL, z], r >= 6 && r <= 9 ? (r === 9 ? 0.5 : 1) * clamp((z + 0.3) / 0.5) : 0, h);
+    }
+  });
+  const tri = (a, b, c, kind = 0) => { if (a !== b && b !== c && a !== c) T.push({ v: [a, b, c], kind }); };
+  for (let j = 0; j < N; j++) tri(top, idx[0][(j + 1) % N], idx[0][j]);
+  for (let r = 0; r < ROWS.length - 1; r++) {
+    for (let j = 0; j < N; j++) {
+      const j2 = (j + 1) % N;
+      const a = idx[r][j], b = idx[r][j2], c = idx[r + 1][j], d = idx[r + 1][j2];
+      const kind = r === 5 ? 1 : 0;                         // 1 = inside of the mouth
+      tri(a, c, b, kind); tri(b, c, d, kind);
+    }
+  }
+  // Flap ears.
+  for (const s of [-1, 1]) {
+    const e = [[s * 0.58, 0.14, -0.04], [s * 0.72, 0.06, -0.18], [s * 0.68, -0.24, -0.15], [s * 0.57, -0.2, -0.05]]
+      .map(([x, y, z]) => vert([x * SLIM, y * TALL, z]));
+    tri(e[0], e[1], e[2]); tri(e[0], e[2], e[3]);
+    T[T.length - 1].twoSided = T[T.length - 2].twoSided = true;
+  }
+  return { V, T, jaw, head, jawPivot: [0, -0.24 * TALL, -0.28], neckPivot: [0, -1.05 * TALL, -0.05] };
+}
+
+// "Basic head mesh" by kavabanga (BlendSwap #79148, CC0), exported from the
+// .blend with Blender and rotated to face +z. v = vertices, f = faces (kept as
+// quads, not triangles), mouth = lower-lip faces that go solid when the jaw
+// opens, jaw / head = how much each vertex follows the jaw and the head.
+const MESH = {"v":[[0.409,-1.028,-0.953],[0.093,-0.414,0.949],[0.093,-0.0,0.705],[0.192,0.148,0.742],[0.262,0.663,0.543],[0.081,-0.572,0.771],[0.176,-0.073,0.618],[0.19,-0.478,0.689],[0.637,-0.112,0.343],[0.522,0.09,0.505],[0.558,-0.417,0.449],[0.108,-0.657,0.82],[0.112,-0.755,0.767],[0.098,-0.832,0.809],[0.266,-0.81,0.632],[0.42,-0.763,0.534],[0.089,-0.925,0.727],[0.091,-1.142,0.746],[0.195,-1.154,0.616],[0.588,0.506,0.34],[0.36,0.916,-0.169],[0.658,0.72,-0.24],[0.708,-0.119,-0.228],[0.279,-1.136,0.443],[0.455,-0.941,0.187],[0.604,-0.689,0.052],[0.071,-1.199,0.654],[0.097,-1.206,0.499],[0.204,0.576,-0.907],[0.366,0.421,-0.904],[0.366,-0.096,-0.964],[0.366,-0.479,-0.753],[0.411,-0.537,-0.456],[0.485,-0.747,-0.159],[0.434,-0.914,-0.083],[0.257,-1.093,0.083],[0.154,-1.137,0.153],[0.456,-1.089,-0.656],[0.53,-1.297,-0.357],[0.472,-1.532,-0.27],[0.276,-1.703,-0.084],[0.168,-1.799,-0.023],[-0.409,-1.028,-0.953],[-0.093,-0.414,0.949],[-0.093,-0.0,0.705],[-0.191,0.148,0.742],[-0.262,0.663,0.543],[-0.08,-0.572,0.771],[-0.176,-0.073,0.618],[-0.189,-0.478,0.689],[-0.636,-0.112,0.343],[-0.522,0.09,0.505],[-0.558,-0.417,0.449],[-0.108,-0.657,0.82],[-0.112,-0.755,0.767],[-0.098,-0.832,0.809],[-0.265,-0.81,0.632],[-0.42,-0.763,0.534],[-0.089,-0.925,0.727],[-0.091,-1.142,0.746],[-0.195,-1.154,0.616],[-0.587,0.506,0.34],[-0.359,0.916,-0.169],[-0.658,0.72,-0.24],[-0.708,-0.119,-0.228],[-0.279,-1.136,0.443],[-0.454,-0.941,0.187],[-0.603,-0.689,0.052],[-0.07,-1.199,0.654],[-0.097,-1.206,0.499],[-0.203,0.576,-0.907],[-0.366,0.421,-0.904],[-0.366,-0.096,-0.964],[-0.366,-0.479,-0.753],[-0.411,-0.537,-0.456],[-0.485,-0.747,-0.159],[-0.433,-0.914,-0.083],[-0.256,-1.093,0.083],[-0.154,-1.137,0.153],[-0.456,-1.089,-0.656],[-0.53,-1.297,-0.357],[-0.472,-1.532,-0.27],[-0.275,-1.703,-0.084],[-0.168,-1.799,-0.023],[0.0,0.148,0.742],[0.0,-0.08,-1.09],[0.0,0.687,0.543],[0.0,0.95,-0.169],[0.0,0.613,-0.938],[0.0,-0.572,-0.908],[0.0,-1.799,-0.02],[0.0,-1.124,-1.127],[0.0,-1.139,0.153],[0.0,-1.213,0.502],[0.0,-1.142,0.746],[0.0,-0.925,0.727],[0.0,-0.832,0.809],[0.0,-0.755,0.767],[0.0,-0.686,0.813],[0.0,-0.578,0.752],[0.0,-0.54,0.878],[0.0,-0.414,0.949],[0.0,-0.0,0.705],[0.0,-1.199,0.654]],"f":[[101,1,2,102],[3,84,102,2],[4,86,84,3],[101,100,1],[99,5,100],[1,100,5,7],[7,6,2,1],[3,2,6,8,9],[7,10,8,6],[98,11,5,99],[97,12,11,98],[96,13,12,97],[12,14,11],[13,14,12],[7,5,11,14],[10,7,14,15],[95,16,13,96],[14,13,16],[94,17,16,95],[17,18,16],[15,14,16,18],[4,3,9,19],[20,87,86,4],[19,21,20,4],[8,22,21,19,9],[24,15,18,23],[25,10,15,24],[10,25,22,8],[17,94,103,26],[18,17,26],[93,27,26,103],[23,18,26,27],[28,88,87,20],[21,29,28,20],[22,29,21],[29,22,30],[22,32,31,30],[25,33,32,22],[34,33,25,24],[35,34,24,23],[92,36,27,93],[27,36,35,23],[85,88,28,29,30],[89,85,30,31],[89,31,0,91],[35,36,41,40],[36,92,90,41],[34,35,40,39],[33,34,39,38],[32,33,38,37],[31,32,37,0],[101,102,44,43],[45,44,102,84],[46,45,84,86],[101,43,100],[99,100,47],[43,49,47,100],[49,43,44,48],[45,51,50,48,44],[49,48,50,52],[98,99,47,53],[97,98,53,54],[96,97,54,55],[54,53,56],[55,54,56],[49,56,53,47],[52,57,56,49],[95,96,55,58],[56,58,55],[94,95,58,59],[59,58,60],[57,60,58,56],[46,61,51,45],[62,46,86,87],[61,46,62,63],[50,51,61,63,64],[66,65,60,57],[67,66,57,52],[52,50,64,67],[59,68,103,94],[60,68,59],[93,103,68,69],[65,69,68,60],[70,62,87,88],[63,62,70,71],[64,63,71],[71,72,64],[64,72,73,74],[67,64,74,75],[76,66,67,75],[77,65,66,76],[92,93,69,78],[69,65,77,78],[85,72,71,70,88],[89,73,72,85],[89,91,42,73],[77,82,83,78],[78,83,90,92],[76,81,82,77],[75,80,81,76],[74,79,80,75],[73,42,79,74]],"mouth":[11,62],"jaw":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,1.0,0.57,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03,0.37,0.51,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,1.0,0.57,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03,0.37,0.51,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.51,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],"head":[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.99,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.82,0.4,0.09,0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.99,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.82,0.4,0.09,0.0,1.0,1.0,1.0,1.0,1.0,1.0,0.0,1.0,1.0,0.98,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]};
+
+const MESH_TILT = -0.2;   // radians; more negative = chin up
+
+function meshHead() {
+  // The model is sculpted looking slightly down; tilt it back to a level, stoic gaze.
+  const V = MESH.v.map(p => rotX(p, MESH_TILT, [0, -1.3, -0.2]));
+  const jaw = MESH.jaw.slice(), head = MESH.head.slice();
+  const add = (p, j, h) => { jaw.push(j); head.push(h); return V.push(p) - 1; };
+
+  // Mouth: the model's own lips. They meet along a seam (vertices 54, 97, 12)
+  // that runs between the two lip corners (vertex 14 and its mirror), where the
+  // upper- and lower-lip triangles join. The seam is split so the lower lip can
+  // drop away from the upper one, and the gap between them is a solid polygon,
+  // invisible while the lips are closed. The corners move a little with the jaw.
+  const mirror = i => MESH.v.reduce((best, p, j) => {
+    const d = Math.hypot(p[0] + MESH.v[i][0], p[1] - MESH.v[i][1], p[2] - MESH.v[i][2]);
+    return d < best[1] ? [j, d] : best;
+  }, [i, Infinity])[0];
+  const CORNER_R = 14, CORNER_L = mirror(14);
+  const LIP = [CORNER_L, 54, 97, 12, CORNER_R];
+  jaw[CORNER_L] = jaw[CORNER_R] = 0.3;
+  for (const i of [54, 97, 12]) jaw[i] = 0;
+  const lipY = MESH.v[97][1], lower = {};
+  for (const i of [54, 97, 12]) lower[i] = add(V[i].slice(), 1, 1);
+  const T = MESH.f.map(f => {
+    const below = f.reduce((y, i) => y + MESH.v[i][1], 0) / f.length < lipY;
+    return { v: below ? f.map(i => lower[i] ?? i) : f, kind: 0, group: 'model' };
+  });
+  T.push({ v: [...LIP, lower[12], lower[97], lower[54]], kind: 1 });
+
+  // Shoulders grown out of the open neck: the first ring is the neck's own
+  // edge, the next rings slope down and out to the trapezius and shoulders.
+  const edges = new Map();
+  for (const f of MESH.f) f.forEach((i, k) => {
+    const j = f[(k + 1) % f.length], key = Math.min(i, j) + ',' + Math.max(i, j);
+    edges.set(key, (edges.get(key) || 0) + 1);
+  });
+  const NECK_Z = -0.5;
+  const angle = i => Math.atan2(V[i][0], V[i][2] - NECK_Z);
+  const neck = [...new Set([...edges].filter(([, n]) => n === 1).flatMap(([k]) => k.split(',').map(Number)))]
+    .sort((i, j) => angle(i) - angle(j));
+  const SHOULDERS = [
+    // y offset below the neck edge, half-width, half-depth (in front / behind)
+    { dy: 0.30, w: 1.05, df: 0.78, db: 0.80 },   // trapezius
+    { dy: 0.62, w: 1.85, df: 0.86, db: 0.84 },   // top of the shoulders
+    { dy: 0.98, w: 2.15, df: 0.88, db: 0.84 },   // shoulder edge
+    { dy: 2.40, w: 2.20, df: 0.90, db: 0.84 },   // chest, off the bottom of the screen
+  ];
+  const rings = [neck];
+  for (const R of SHOULDERS) {
+    rings.push(neck.map(i => {
+      const th = angle(i), c = Math.cos(th);
+      const x = R.w * spow(Math.sin(th), BLOCKY);
+      const z = NECK_Z + (c > 0 ? R.df : R.db) * spow(c, BLOCKY);
+      // The front of the neck dips lower (collarbones), the back stays high.
+      const y = Math.min(V[i][1], -1.3) - R.dy - 0.12 * Math.max(0, c);
+      return add([x, y, z], 0, 0);
+    }));
+  }
+  for (let r = 0; r < rings.length - 1; r++) {
+    for (let k = 0; k < neck.length; k++) {
+      const k2 = (k + 1) % neck.length;
+      T.push({ v: [rings[r][k], rings[r][k2], rings[r + 1][k2], rings[r + 1][k]], kind: 0, group: 'shoulders' });
+    }
+  }
+  return { V, T, jaw, head, jawPivot: [0, -0.62, -0.35], neckPivot: [0, -1.5, -0.25] };
+}
+
+// ?head=classic shows the head modelled in code instead of the downloaded one.
+const HEAD = orientOutward(params.get('head') === 'classic' ? buildHead() : meshHead());
+
+// Face normals (Newell's method), so faces pointing away from the camera can be
+// skipped. That keeps the inside of the head from showing through the mouth.
+function polyNormal(P) {
+  const n = [0, 0, 0];
+  for (let k = 0; k < P.length; k++) {
+    const a = P[k], b = P[(k + 1) % P.length];
+    n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+  }
+  return n;
+}
+function centroid(P) { const c = [0, 0, 0]; for (const p of P) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; } return mul(c, 1 / P.length); }
+
+// Make every face wind so its normal points out of the body. Each group of
+// faces (the downloaded model, the shoulders, the head built in code) is wound
+// consistently, so a group is flipped as a whole when most of its faces point
+// inward. Judging faces one by one goes wrong where the neck meets the
+// shoulders, where faces lie almost flat.
+function orientOutward(H) {
+  const outward = poly => {
+    const P = poly.v.map(i => H.V[i]), c = centroid(P);
+    const ref = poly.group === 'shoulders' ? [0, c[1], -0.5] : [0, -0.1, -0.15];
+    return dot(polyNormal(P), sub(c, ref)) > 0;
+  };
+  const groups = {};
+  for (const poly of H.T) {
+    if (poly.kind === 1 || poly.twoSided) continue;
+    (groups[poly.group || 'classic'] ||= []).push(poly);
+  }
+  for (const polys of Object.values(groups)) {
+    if (polys.filter(outward).length < polys.length / 2) for (const poly of polys) poly.v.reverse();
+  }
+  return H;
+}
+const JAW_PIVOT = HEAD.jawPivot, NECK_PIVOT = HEAD.neckPivot;
+
+// ---------------------------------------------------------------- animation clips
+// Each clip gives a target head pose: yaw, pitch (+ = look down), roll, x shift, y shift.
+const CLIPS = {
+  idle: (t, a) => ({
+    yaw: 0.22 * noise(t * 0.12 + a.seed), pitch: 0.03 + 0.06 * noise(t * 0.17 + 9 + a.seed),
+    roll: 0.07 * noise(t * 0.1 + 3 + a.seed), x: 0, y: 0.015 * Math.sin(t * 1.1),
+  }),
+  pace: (t, a) => {
+    // Walking back and forth past the camera: sway, step bob, head turned the way it walks.
+    const p = t * 0.32 + a.seed;
+    return { yaw: 0.45 * Math.cos(p), pitch: 0.05 + 0.03 * Math.sin(t * 5.2), roll: 0.05 * Math.sin(t * 2.6),
+             x: 0.55 * Math.sin(p), y: 0.035 * Math.abs(Math.sin(t * 2.6)) };
+  },
+  listen: (t, a, heard) => ({
+    yaw: 0.12 * noise(t * 0.2 + a.seed), pitch: -0.06 + 0.1 * heard + 0.03 * Math.sin(t * 0.7),
+    roll: 0.16 + 0.04 * noise(t * 0.3), x: 0, y: 0.01 * Math.sin(t * 1.1),
+  }),
+  speak: (t, a, heard, lv) => ({
+    yaw: 0.18 * Math.sin(t * 0.55 + a.seed) + 0.05 * noise(t * 2), pitch: 0.02 + 0.13 * lv,
+    roll: 0.05 * Math.sin(t * 0.8), x: 0, y: 0.02 * lv,
+  }),
+  think: (t, a) => ({
+    yaw: 0.3 * Math.sin(t * 0.25 + a.seed), pitch: 0.16 + 0.05 * noise(t * 0.4),
+    roll: -0.1 + 0.05 * noise(t * 0.3), x: 0, y: 0,
+  }),
+};
+const CLIP_NAMES = Object.keys(CLIPS);
+
+// ---------------------------------------------------------------- node state
+function makeAvatar(role) {
+  return {
+    role, url: null, st: null, offset: 0, ok: false, fails: 0, seed: role === 'light' ? 0 : 37,
+    level: 0, speak: 0, awake: 0,
+    clip: 'idle', idleClip: 'idle', idleUntil: 0,
+    pose: { yaw: 0, pitch: 0.1, roll: 0, x: 0, y: 0 },
+    glitchStart: 0, glitchUntil: 0, glitchRamp: false, gs: 0, glitchClip: null, nextFlicker: 40 + Math.random() * 60,
+    lastSeq: -1, text: '', shown: 0, state: 'IDLE', glitchesDone: new Set(),
+  };
+}
+const A = { light: makeAvatar('light'), dark: makeAvatar('dark') };
+const other = r => (r === 'light' ? 'dark' : 'light');
+
+async function poll(role) {
+  const a = A[role];
+  try {
+    const t0 = Date.now() / 1000;
+    const s = await (await fetch(a.url + '/status', { cache: 'no-store' })).json();
+    const t1 = Date.now() / 1000;
+    a.offset = s.now - (t0 + t1) / 2;
+    a.st = s; a.ok = true; a.fails = 0;
+  } catch (e) {
+    // Only real, repeated failures count as offline (not a throttled background tab).
+    if (++a.fails >= 6) a.ok = false;
+  }
+  setTimeout(() => poll(role), 120);
+}
+
+const speechTime = a => Date.now() / 1000 + a.offset - a.st.env_start;
+function levelNow(a) {
+  const s = a.st;
+  if (!a.ok || !s || s.state !== 'speaking' || !s.env || !s.env.length) return 0;
+  const i = Math.floor(speechTime(a) * s.env_hz);
+  return i >= 0 && i < s.env.length ? s.env[i] : 0;
+}
+
+// A glitch runs from t for len seconds. With ramp, its strength swells and
+// fades like the audio glitch it follows; without, it's a hard cut.
+function glitch(a, t, len, ramp = false) {
+  a.glitchStart = t; a.glitchUntil = t + len; a.glitchRamp = ramp;
+  a.glitchClip = CLIP_NAMES[Math.floor(Math.random() * CLIP_NAMES.length)];
+}
+function glitchStrength(a, t) {
+  if (t >= a.glitchUntil) return 0;
+  if (!a.glitchRamp) return 1;
+  const u = clamp((t - a.glitchStart) / (a.glitchUntil - a.glitchStart));
+  return Math.sin(Math.PI * u) ** 0.7;
+}
+
+function step(a, t, dt) {
+  const s = a.st, o = A[other(a.role)];
+  const speaking = a.ok && s && s.state === 'speaking';
+  const listening = a.ok && !speaking && o.ok && o.st && o.st.state === 'speaking';
+  const thinking = a.ok && !speaking && !listening && s && s.state === 'thinking';
+  a.speak = ease(a.speak, speaking ? 1 : 0, 8, dt);
+  a.awake = ease(a.awake, a.ok ? 1 : 0, a.ok ? 3 : 1.5, dt);
+  a.level = ease(a.level, levelNow(a), 22, dt);
+  a.state = !a.ok ? 'NO SIGNAL' : speaking ? 'SPEAKING' : listening ? 'LISTENING' : thinking ? 'PROCESSING' : 'IDLE';
+
+  // Idle wanders between standing and pacing.
+  if (t > a.idleUntil) {
+    a.idleClip = a.idleClip === 'idle' && Math.random() < 0.45 ? 'pace' : 'idle';
+    a.idleUntil = t + (a.idleClip === 'pace' ? 9 + Math.random() * 8 : 7 + Math.random() * 10);
+  }
+  const clip = speaking ? 'speak' : listening ? 'listen' : thinking ? 'think' : a.idleClip;
+  // Glitching belongs to whoever is talking. Starting to speak is a short hard
+  // cut; every other change of animation just eases across.
+  if (clip !== a.clip) { a.clip = clip; if (clip === 'speak') glitch(a, t, 0.1 + Math.random() * 0.08); }
+  // While speaking, the picture glitches exactly when the audio does (the node
+  // decides when and sends the times), swelling and fading with it. A face that
+  // isn't talking flickers only very rarely, and never while it listens.
+  if (speaking && s.glitches) {
+    const ts = speechTime(a);
+    s.glitches.forEach((e, k) => {
+      const key = s.seq + ':' + k;
+      if (ts >= e.t && ts < e.t + e.d && !a.glitchesDone.has(key)) {
+        a.glitchesDone.add(key);
+        glitch(a, t, e.t + e.d - ts, true);
+      }
+    });
+  } else if (!speaking && !listening) {
+    a.nextFlicker -= dt;
+    if (a.nextFlicker <= 0) { glitch(a, t, 0.06 + Math.random() * 0.1); a.nextFlicker = 60 + Math.random() * 90; }
+  }
+
+  a.gs = glitchStrength(a, t);
+  const snapping = a.gs > 0.55;
+  if (snapping && Math.random() < 0.3 * a.gs) a.glitchClip = CLIP_NAMES[Math.floor(Math.random() * CLIP_NAMES.length)];
+  const target = CLIPS[snapping ? a.glitchClip : a.clip](t, a, o.level, a.level);
+  for (const k in a.pose) a.pose[k] = snapping ? target[k] : ease(a.pose[k], target[k], 2.2 + 6 * a.gs, dt);
+
+  if (speaking && s.seq !== a.lastSeq) { a.lastSeq = s.seq; a.text = s.text; }
+  if (speaking) {
+    const words = a.text.split(/\s+/).length;
+    a.shown = Math.ceil(words * clamp((speechTime(a) + 0.3) / Math.max(0.1, s.env.length / s.env_hz)));
+  } else if (listening) a.text = '';
+}
+
+// ---------------------------------------------------------------- drawing
+function drawPanel(role, X, Y, PW, PH, t) {
+  const a = A[role], ink = INK[role];
+  const u = Math.min(PH, PW * 0.75);
+  const lw = Math.max(1, u / 380);
+  g.save();
+  g.beginPath(); g.rect(X, Y, PW, PH); g.clip();
+  g.fillStyle = ink.bg; g.fillRect(X, Y, PW, PH);
+
+  // Camera: high and close, drifting slowly around the face (game-over-screen style).
+  // Seen in three-quarter profile: LIGHT (left screen) faces right, DARK faces left,
+  // so across the two CRTs they face each other.
+  const side = role === 'light' ? -1 : 1;
+  const az = side * 0.72 + 0.1 * Math.sin(t * 0.045 + a.seed);
+  const el = 0.14 + 0.04 * Math.sin(t * 0.031 + a.seed);
+  const dist = 3.95 + 0.12 * Math.sin(t * 0.05);
+  const target = [0, -0.2, 0.1];
+  const eye = [target[0] + dist * Math.cos(el) * Math.sin(az), target[1] + dist * Math.sin(el), target[2] + dist * Math.cos(el) * Math.cos(az)];
+  const f = norm(sub(target, eye)), r = norm(cross(f, [0, 1, 0])), up = cross(r, f);
+  const F = u * 1.35, cx = X + PW / 2, cy = Y + PH * 0.5;
+  const collapse = 0.015 + 0.985 * a.awake;
+  const snap = u / 150;                      // PS1-style vertex snapping
+  const jit = Math.max(0.045 * a.gs, 0.006 * a.level * a.speak);
+  const tick = Math.floor(t * 15);
+
+  // Pose the head: jaw, then nod/turn/tilt around the neck, then pacing offset.
+  const P = a.pose, open = 0.3 * a.level * a.speak;
+  const pts = HEAD.V.map((v, i) => {
+    let p = HEAD.jaw[i] ? rotX(v, open * HEAD.jaw[i], JAW_PIVOT) : v;
+    const h = HEAD.head[i];
+    if (h) {
+      p = rotX(p, P.pitch * h, NECK_PIVOT);
+      p = rotZ(p, P.roll * h, NECK_PIVOT);
+      p = rotY(p, P.yaw * h, NECK_PIVOT);
+    } else {
+      p = rotY(p, P.yaw * 0.2, NECK_PIVOT);   // shoulders follow the head a little
+    }
+    p = [p[0] + P.x, p[1] + P.y * (0.6 + 0.4 * h), p[2]];
+    const d = sub(p, eye);
+    const z = dot(d, f);
+    let sx = cx + dot(d, r) / z * F, sy = cy - dot(d, up) / z * F * collapse;
+    if (jit) { sx += (hash(i * 1.7 + tick * 31.1) - 0.5) * jit * u; sy += (hash(i * 2.3 + tick * 17.9) - 0.5) * jit * u; }
+    return [Math.round(sx / snap) * snap, Math.round(sy / snap) * snap, z, p];
+  });
+
+  // Faces that point at the camera are drawn far to near (painter's algorithm),
+  // each filled with the background and outlined in ink. Faces pointing away
+  // are never drawn, so the inside of the head can't show through. The mouth
+  // opening is solid ink and sorts as if it sat at its nearest point, so it
+  // covers the lip faces that stretch across it when the jaw drops, while
+  // anything truly in front (the nose) still draws over it.
+  const depth = poly => {
+    if (poly.kind === 1) return Math.min(...poly.v.map(i => pts[i][2])) - 0.02;
+    let z = 0; for (const i of poly.v) z += pts[i][2]; return z / poly.v.length;
+  };
+  const facing = poly => {
+    if (poly.twoSided) return true;
+    const P = poly.v.map(i => pts[i][3]);
+    return dot(polyNormal(P), sub(eye, centroid(P))) > 0;
+  };
+  const order = HEAD.T.filter(poly => poly.kind === 1 || facing(poly))
+    .map(poly => [poly, depth(poly)]).sort((m, n) => n[1] - m[1]);
+  g.lineWidth = lw; g.lineJoin = 'round';
+  g.strokeStyle = `rgb(${ink.fg})`;
+  for (const [poly] of order) {
+    g.beginPath();
+    poly.v.forEach((i, k) => k ? g.lineTo(pts[i][0], pts[i][1]) : g.moveTo(pts[i][0], pts[i][1]));
+    g.closePath();
+    g.fillStyle = poly.kind === 1 ? ink.solid : ink.bg;
+    g.fill(); g.stroke();
+  }
+
+  if (captions && a.text) {
+    const fs = Math.max(10, Math.round(u * 0.028));
+    const words = a.text.toUpperCase().split(/\s+/).slice(0, a.speak > 0.5 ? a.shown : undefined);
+    g.font = `${fs}px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    const lines = [], maxW = PW * 0.8;
+    let cur = '';
+    for (const w of words) {
+      const tryLine = cur ? cur + ' ' + w : w;
+      if (g.measureText(tryLine).width > maxW && cur) { lines.push(cur); cur = w; } else cur = tryLine;
+    }
+    if (cur) lines.push(cur);
+    const lh = fs * 1.75, last = lines.slice(-3);
+    last.forEach((l, i) => {
+      const by = Y + PH * 0.93 - (last.length - 1 - i) * lh, w = g.measureText(l).width;
+      g.fillStyle = ink.bg; g.fillRect(cx - w / 2 - fs * 0.5, by - fs * 1.15, w + fs, fs * 1.5);
+      g.fillStyle = `rgb(${ink.fg})`; g.fillText(l, cx, by);
+    });
+  }
+
+  // Y2K glitch: slices slip sideways and flip into their opposite, more of them
+  // and further the stronger the glitch is at this moment.
+  if (a.gs > 0 && canvas.width > 0 && canvas.height > 0) {
+    const slices = Math.round(3 * a.gs + Math.random() * 0.5);
+    for (let i = 0; i < slices; i++) {
+      const by = Y + Math.random() * PH, bh = PH * (0.01 + Math.random() * 0.06 * a.gs);
+      const dx = (Math.random() - 0.5) * PW * 0.12 * a.gs;
+      g.drawImage(canvas, X * DPR, by * DPR, PW * DPR, bh * DPR, X + dx, by, PW, bh);
+      if (i === 0 && a.gs > 0.5) {
+        g.globalCompositeOperation = 'difference';
+        g.fillStyle = '#fff'; g.fillRect(X, by, PW, bh);
+        g.globalCompositeOperation = 'source-over';
+      }
+    }
+  }
+  g.restore();
+}
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);   // first, so one bad frame can't stop the show
+  if (canvas.width !== Math.round(innerWidth * (window.devicePixelRatio || 1))) resize();
+  if (!W || !H) return;
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const t = now / 1000;
+  step(A.light, t, dt); step(A.dark, t, dt);
+  g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
+  if (view === 'light' || view === 'dark') {
+    drawPanel(view, 0, 0, W, H, t);
+  } else {
+    // Preview: two 4:3 screens facing each other.
+    const gap = Math.max(12, W * 0.02);
+    const pw = Math.min((W - gap * 3) / 2, (H - gap * 2) * 4 / 3), ph = pw * 0.75;
+    const x0 = (W - pw * 2 - gap) / 2, y0 = (H - ph) / 2;
+    drawPanel('light', x0, y0, pw, ph, t);
+    drawPanel('dark', x0 + pw + gap, y0, pw, ph, t);
+  }
+}
+
+// ---------------------------------------------------------------- start up
+async function init() {
+  A.light.url = params.get('light');
+  A.dark.url = params.get('dark');
+  if (!A.light.url || !A.dark.url) {
+    try {
+      const s = await (await fetch('/status', { cache: 'no-store' })).json();
+      A[s.role].url = A[s.role].url || location.origin;
+      A[other(s.role)].url = A[other(s.role)].url || s.peer;
+    } catch (e) { /* poll() keeps trying */ }
+  }
+  for (const r of ['light', 'dark']) {
+    A[r].url = (A[r].url || location.origin).replace(/\/$/, '');
+    poll(r);
+  }
+}
+
+addEventListener('resize', resize);
+const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'f') toggleFs();
+  else if (k === 's') captions = !captions;
+  else if (k === '1') view = 'light';
+  else if (k === '2') view = 'dark';
+  else if (k === '0') view = 'both';
+});
+addEventListener('dblclick', toggleFs);
+let mouseTimer;
+addEventListener('mousemove', () => {
+  document.body.classList.remove('idlemouse');
+  clearTimeout(mouseTimer);
+  mouseTimer = setTimeout(() => document.body.classList.add('idlemouse'), 2500);
+});
+setTimeout(() => document.getElementById('hint').classList.add('off'), 5000);
+
+resize();
+init();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
