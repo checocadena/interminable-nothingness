@@ -166,6 +166,10 @@ be reachable between the Pis (no firewall is enabled on Pi OS by default).
 | `--temperature` | `1.0` | |
 | `--keep` | `8` | messages of context sent to the model |
 | `--nudge-every` | `5` | add a random provocation every N turns (0 = off) |
+| `--reinforce-every` | `4` | restate the persona every N turns, so the voices don't converge (0 = off) |
+| `--max-words` | `50` | hard cap on words per line, cut at a sentence break |
+| `--num-predict` | `100` | max tokens the model may generate per line |
+| `--gap` | `2` | seconds of quiet between one voice ending and the other starting |
 | `--wait-timeout` | `120` | max seconds to wait for the peer's `/done` |
 | `--reply-timeout` | `300` | (starter only) seconds of silence before it reopens the conversation |
 | `--length-scale` | voice default | Piper speed; >1 is slower (nice for DARK) |

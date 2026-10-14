@@ -59,8 +59,11 @@ DARK_PERSONA = (
 
 SHARED_RULES = (
     "You are one half of an endless spoken conversation. "
-    "Reply in 1 to 3 short sentences of plain spoken language, as if talking aloud. "
-    "Keep each sentence short and simple. "
+    "Reply in 2 to 4 sentences of plain spoken language, as if talking aloud. "
+    "Develop your thought a little: give a reason, an example or an image. "
+    "Keep each sentence fairly short. "
+    "You and your counterpart see life in opposite ways. Never simply agree: "
+    "challenge or contradict what they just said, then make your own case. "
     "No lists, no emoji, no stage directions, no quotation marks, no name labels. "
     "Respond to what your counterpart just said, then add a NEW thought, image, "
     "or question. Never repeat yourself. Never wrap up and never say goodbye."
@@ -74,9 +77,11 @@ STYLES = {
     "light": "Sound like LIGHT: warm, curious and gently playful, in plain everyday "
              "words. Wonder aloud about life, what it means and why it matters. "
              "Mostly say what you think or notice; only now and then ask a question. "
-             "Never mystical.",
+             "Don't give in to DARK: argue back, and say why its bleakness is wrong "
+             "or only half the story. Never mystical.",
     "dark": "Sound like DARK: mystical and strange, like an oracle. One stark, haunting "
-            "image, spoken in very few words. Never cheerful, never gushing.",
+            "image or two, in few words. Don't give in to LIGHT: answer its comfort "
+            "with a colder truth. Never cheerful, never gushing.",
 }
 
 # Words small models lean on until every line sounds the same. The reminder
@@ -185,6 +190,7 @@ class Channel:
         self.recv_seq = 0          # seq of the peer's latest accepted utterance
         self.inbox = None          # (epoch, seq, text) waiting to be answered
         self.peer_speaking = False
+        self.peer_done_at = 0.0    # monotonic time the peer last finished speaking
         # What the stage page shows: state is idle | thinking | ready | speaking.
         self.show = {"state": "idle", "text": "", "seq": 0, "env": [], "env_start": 0.0}
         self.reopen = False        # (starter) the peer restarted and wants a fresh epoch
@@ -215,6 +221,7 @@ class Channel:
         with self.cv:
             if epoch == self.epoch and seq == self.recv_seq:
                 self.peer_speaking = False
+                self.peer_done_at = time.monotonic()
                 self.cv.notify_all()
             return epoch == self.epoch
 
@@ -353,8 +360,8 @@ def wait_for_idle_peer(args, log):
 EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿️‍]")
 
 
-MAX_WORDS = 30
-MAX_SENTENCES = 3
+MAX_WORDS = 50
+MAX_SENTENCES = 5
 
 # A line must not end on one of these ("... as if.", "... from which.").
 DANGLING = set(
@@ -453,7 +460,7 @@ def overused(history, look=6, min_lines=3):
 
 def reminder(args, history, turn):
     """The per-turn style note appended to the latest message."""
-    note = f"Reply as {args.role.upper()}, in at most {args.max_words - 8} words. "
+    note = f"Reply as {args.role.upper()}, in 2 to 4 sentences and at most {args.max_words - 8} words. "
     if args.reinforce_every and turn % args.reinforce_every == 0:
         note += PERSONAS[args.role] + " "
     note += STYLES[args.role]
@@ -771,7 +778,7 @@ def parse_args():
                     help="restate the persona every N turns; 0 disables")
     ap.add_argument("--max-words", type=int, default=MAX_WORDS,
                     help="hard cap on words per spoken line")
-    ap.add_argument("--num-predict", type=int, default=60,
+    ap.add_argument("--num-predict", type=int, default=100,
                     help="max tokens the model may generate per line")
     ap.add_argument("--wait-timeout", type=float, default=120,
                     help="max seconds to wait for the peer's /done")
@@ -789,6 +796,8 @@ def parse_args():
                     help="chance (0..1) that a line glitches; 0 = never")
     ap.add_argument("--pan", type=float, default=None,
                     help="stereo position, -1 left .. 1 right (default: mono)")
+    ap.add_argument("--gap", type=float, default=None,
+                    help="seconds of quiet between the peer's line and mine (default 2, 0.3 with --mock)")
     ap.add_argument("--log-dir", default=".")
     ap.add_argument("--mock", action="store_true", help="fake generation and speech")
     ap.add_argument("--trace", action="store_true", help="log speech start/end timings")
@@ -798,6 +807,8 @@ def parse_args():
                     help="don't play audio (keeps real-time pacing; useful with --record)")
     args = ap.parse_args()
     args.peer = args.peer.rstrip("/")
+    if args.gap is None:
+        args.gap = 0.3 if args.mock else 2.0
     return args
 
 
@@ -873,6 +884,10 @@ def main():
         # 3. Wait for the peer to finish talking.
         if seq > 1 and not ch.wait_peer_quiet(args.wait_timeout):
             log.info(f"peer never sent /done after {args.wait_timeout:.0f}s, going on")
+        if seq > 1:
+            # Leave a breath of quiet after the peer's line (less if thinking took a while).
+            gap = args.gap * random.uniform(0.8, 1.3)
+            time.sleep(max(0.0, gap - (time.monotonic() - ch.peer_done_at)))
         if not ch.claim_turn(epoch, seq):
             log.info("conversation moved on while I was thinking; dropping my reply")
             ch.show = dict(ch.show, state="idle")
