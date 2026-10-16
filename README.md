@@ -76,9 +76,9 @@ other, endlessly, about the one question neither can answer.
 
 ## In the room
 
-<img src="media/plan.svg" alt="Top view: two CRTs facing each other 1.5 to 3 m apart, audience to the side" width="100%">
+<img src="media/plan.svg" alt="Top view: two CRTs 1.5 to 3 m apart, each turned 45 degrees toward the other and the room, the audience in front of both" width="100%">
 
-- Two CRT televisions on plinths face each other across 1.5 to 3 m, each showing one face.
+- Two CRT televisions on plinths, 1.5 to 3 m apart, each turned 45° toward the other: clearly talking to each other, while visitors in front can see both screens. Each shows one face.
 - Each TV is its own voice, so the conversation crosses the room.
 - Each set is driven by a Raspberry Pi 5 running Llama 3.2 3B (through Ollama), a Piper voice and the face. The two Pis talk over one ethernet cable.
 - It runs indefinitely and looks after itself: if either side restarts, they find each other and carry on.

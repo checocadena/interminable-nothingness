@@ -1,40 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="none">
   <title>Interminable Nothingness: installation plan, top view</title>
-  <rect width="960" height="520" fill="#ffffff"/>
+  <rect width="960" height="560" fill="#ffffff"/>
   <!-- room -->
-  <rect x="40" y="40" width="880" height="440" stroke="#000" stroke-width="2"/>
+  <rect x="40" y="40" width="880" height="480" stroke="#000" stroke-width="2"/>
   <text x="56" y="66" fill="#000">TOP VIEW · ROOM ~4 × 3 m, DIM</text>
-  <!-- axis between the screens -->
-  <line x1="300" y1="260" x2="660" y2="260" stroke="#000" stroke-dasharray="4 6"/>
-  <text x="430" y="248" fill="#000">1.5–3 m</text>
-  <!-- LIGHT plinth + CRT (white screen, faces right) -->
-  <rect x="160" y="200" width="120" height="120" stroke="#000" stroke-width="2" fill="#fff"/>
-  <rect x="190" y="215" width="80" height="90" stroke="#000" stroke-width="2" fill="#fff"/>
-  <line x1="270" y1="215" x2="270" y2="305" stroke="#000" stroke-width="6"/>
-  <text x="168" y="345" fill="#000">LIGHT · CRT 1</text>
-  <text x="168" y="363" fill="#000">black lines on white</text>
-  <text x="168" y="381" fill="#000">speaks from its own TV</text>
-  <!-- DARK plinth + CRT (black screen, faces left) -->
-  <rect x="680" y="200" width="120" height="120" stroke="#000" stroke-width="2" fill="#000"/>
-  <rect x="690" y="215" width="80" height="90" stroke="#fff" stroke-width="2" fill="#000"/>
-  <line x1="690" y1="215" x2="690" y2="305" stroke="#fff" stroke-width="6"/>
-  <text x="688" y="345" fill="#000">DARK · CRT 2</text>
-  <text x="688" y="363" fill="#000">white lines on black</text>
-  <text x="688" y="381" fill="#000">speaks from its own TV</text>
-  <!-- screens facing each other -->
-  <path d="M 285 260 l 18 -8 v 16 z" fill="#000"/>
-  <path d="M 675 260 l -18 -8 v 16 z" fill="#000"/>
-  <!-- Pis + speakers -->
-  <rect x="120" y="140" width="40" height="26" stroke="#000"/>
-  <text x="120" y="130" fill="#000">Pi 5 + speaker</text>
-  <rect x="800" y="140" width="40" height="26" stroke="#000"/>
-  <text x="760" y="130" fill="#000">Pi 5 + speaker</text>
-  <line x1="160" y1="153" x2="800" y2="153" stroke="#000" stroke-dasharray="2 4"/>
-  <text x="380" y="146" fill="#000">ethernet (no internet needed)</text>
-  <!-- audience -->
-  <path d="M 380 420 q 100 -60 200 0" stroke="#000" stroke-width="2"/>
-  <text x="392" y="452" fill="#000">AUDIENCE · watches from the side</text>
-  <circle cx="420" cy="405" r="6" fill="#000"/>
-  <circle cx="480" cy="392" r="6" fill="#000"/>
-  <circle cx="540" cy="405" r="6" fill="#000"/>
+
+  <!-- Pis + speakers, behind the sets -->
+  <rect x="200" y="96" width="40" height="26" stroke="#000"/>
+  <text x="200" y="88" fill="#000">Pi 5 + speaker</text>
+  <rect x="720" y="96" width="40" height="26" stroke="#000"/>
+  <text x="680" y="88" fill="#000">Pi 5 + speaker</text>
+  <line x1="240" y1="109" x2="720" y2="109" stroke="#000" stroke-dasharray="2 4"/>
+  <text x="380" y="102" fill="#000">ethernet (no internet needed)</text>
+
+  <!-- Where the two screens look: toward each other and down into the room -->
+  <line x1="340" y1="250" x2="480" y2="390" stroke="#000" stroke-dasharray="4 6"/>
+  <line x1="620" y1="250" x2="480" y2="390" stroke="#000" stroke-dasharray="4 6"/>
+  <line x1="350" y1="232" x2="610" y2="232" stroke="#000" stroke-dasharray="4 6"/>
+  <text x="438" y="222" fill="#000">1.5–3 m</text>
+  <circle cx="480" cy="390" r="3" fill="#000"/>
+
+  <!-- LIGHT: white set, its screen (thick edge) turned 45° toward DARK and the room -->
+  <g transform="translate(290 200) rotate(45)">
+    <rect x="-60" y="-60" width="120" height="120" stroke="#000" stroke-width="2" fill="#fff"/>
+    <rect x="-30" y="-45" width="80" height="90" stroke="#000" stroke-width="2" fill="#fff"/>
+    <line x1="50" y1="-45" x2="50" y2="45" stroke="#000" stroke-width="6"/>
+  </g>
+  <text x="150" y="318" fill="#000">LIGHT · CRT 1</text>
+  <text x="150" y="336" fill="#000">black lines on white</text>
+  <text x="150" y="354" fill="#000">speaks from its own TV</text>
+
+  <!-- DARK: black set, mirrored -->
+  <g transform="translate(670 200) rotate(-45)">
+    <rect x="-60" y="-60" width="120" height="120" stroke="#000" stroke-width="2" fill="#000"/>
+    <rect x="-50" y="-45" width="80" height="90" stroke="#fff" stroke-width="2" fill="#000"/>
+    <line x1="-50" y1="-45" x2="-50" y2="45" stroke="#fff" stroke-width="6"/>
+  </g>
+  <text x="680" y="318" fill="#000">DARK · CRT 2</text>
+  <text x="680" y="336" fill="#000">white lines on black</text>
+  <text x="680" y="354" fill="#000">speaks from its own TV</text>
+
+  <text x="480" y="290" fill="#000" text-anchor="middle">each set at 45°:</text>
+  <text x="480" y="308" fill="#000" text-anchor="middle">toward the other,</text>
+  <text x="480" y="326" fill="#000" text-anchor="middle">open to the room</text>
+
+  <!-- audience, in front of both -->
+  <path d="M 360 470 q 120 -50 240 0" stroke="#000" stroke-width="2"/>
+  <circle cx="410" cy="452" r="6" fill="#000"/>
+  <circle cx="480" cy="441" r="6" fill="#000"/>
+  <circle cx="550" cy="452" r="6" fill="#000"/>
+  <text x="352" y="500" fill="#000">AUDIENCE · sees both screens at once</text>
 </svg>
