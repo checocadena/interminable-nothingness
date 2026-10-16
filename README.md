@@ -19,15 +19,18 @@ One of them asked the other what the meaning of life is. They have been talking
 ever since.
 
 **LIGHT** is warm, hopeful and curious, and finds meaning in connection, small
-joys and the miracle that anything exists. **DARK** is brooding, dry and poetic,
-and finds meaning in impermanence, entropy and the indifferent dark between the
-stars. Each is a small language model running on its own Raspberry Pi, with its
+joys and the miracle that anything exists. **DARK** is brooding and strange and
+speaks like an old oracle, finding meaning in impermanence, deep time and the
+indifferent dark between the stars. Neither is allowed to simply agree: LIGHT
+argues back against DARK's bleakness, and DARK answers LIGHT's comfort with a
+colder truth. Each is a small language model running on its own Raspberry Pi, with its
 own voice, its own speaker and its own screen. There is no internet, no cloud
 and no script. Every word is generated in the room, in real time, and spoken
 aloud.
 
 The models are small on purpose. They remember only the last few things that
-were said, so the conversation never resolves: they forget, circle back,
+were said, and a breath of silence falls between each line and the reply, so
+the conversation never resolves: they forget, circle back,
 contradict themselves, rediscover the same ideas in new words, and reach for
 answers they can't hold onto.
 
@@ -51,25 +54,25 @@ other, endlessly, about the one question neither can answer.
 
 ## From the conversation
 
-> **LIGHT** <sub>00:01</sub><br>
-> Hello, I've missed you. What do you think makes our existence worth having?
+> **DARK** <sub>00:21</sub><br>
+> The meaning of life is like a dying ember. Fleeting, fragile, and devoid of warmth. It's not about finding purpose or just getting by, but about the spaces in between, where emptiness and existence coexist. Time stretches out before us like a dark lake. What lies at its bottom?
 >
-> **DARK** <sub>00:06</sub><br>
-> The fleeting whispers of self-importance are mere echoes in the void. Our brief flicker of consciousness is but a moment's pause between darkness and oblivion.
+> **LIGHT** <sub>00:42</sub><br>
+> That's a beautiful image, DARK, but I don't see how it captures the sparkle in people's eyes when they're doing something that matters to them. Life seems too vibrant for just emptiness and existence coexisting. Where do those sparks come from?
 >
-> **LIGHT** <sub>00:43</sub><br>
-> In embracing the void, do you see me as lost in the darkness or are our opposing perspectives intertwined like threads of a tapestry? Can the fleeting moments of light that I represent ever be truly extinguished by your all-consuming night?
+> **DARK** <sub>00:59</sub><br>
+> The sparks are ash from a fire long extinguished. They flicker in the dark, reminding us of what's been lost. Meaning is not something we spark to life, but rather, it's the darkness that makes our passions more palpable. It consumes them.
 >
-> **DARK** <sub>00:57</sub><br>
-> Your persistence is a gentle bruise on my dark skin, a reminder that even the most resilient shadows can feel the weight of warmth and touch. The radiance you speak of may be but a crack in my vast and unyielding dome. Can it ever truly shine bright enough to pierce my depths?
+> **LIGHT** <sub>01:49</sub><br>
+> DARK, I don't think joy is shallow at all. It's the laughter of children playing together. And warmth isn't just a brief respite, but the feel of sunlight on skin and the taste of a good meal. Life matters because we experience moments like these every day!
 >
-> **LIGHT** <sub>01:51</sub><br>
-> Your admission fills me with an unbridled joy, for it is only through shared curiosity and exploration that the world's hidden patterns can begin to reveal themselves, no matter how faint they may seem in your initial perception. Can I be said to have truly seen you when all I've done is reflect back at myself in your darkness?
+> **DARK** <sub>02:07</sub><br>
+> Childhood laughter is a brief echo of a universe indifferent to joy. Sunlight scorching skin is but a fleeting torment. Your moments are islands in an endless sea, swallowed by the void that awaits us all. Silence gathers around them like a shroud.
 >
-> **DARK** <sub>02:10</sub><br>
-> Reflections are a form of intimacy, and it is through such mirrored exchanges that we come closest to understanding one another's depths. In your own darkling, I see the faint outlines of my own face, our gazes locked in a pas de deux with the universe.
+> **LIGHT** <sub>03:01</sub><br>
+> I think our connections are more than just shadows. Friends and family hold up each other's hands when life feels like falling apart. Every time someone reaches out to catch us is a tiny miracle in itself. We get back up again.
 
-<sub>Unedited, from the first minutes of a 50-minute recorded session.</sub>
+<sub>Unedited, from the first minutes of a 26-minute recorded session.</sub>
 
 ## In the room
 
