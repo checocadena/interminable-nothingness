@@ -33,6 +33,7 @@
   .mono { font-family: var(--mono); }
   .small { font-size: 9pt; line-height: 1.5; }
   img { display: block; }
+  a { color: inherit; text-decoration: none; }
 
   /* Cover: split down the middle, LIGHT on white, DARK on black. */
   .cover { padding: 0; display: grid; grid-template-columns: 1fr 1fr; }
@@ -141,8 +142,8 @@
     <tr><th>Variations</th><td>A single-screen version (both faces side by side) for smaller rooms or screenings, and recorded video of any length.</td></tr>
   </table>
   <p class="small" style="margin-top:.35in"><b>Estimated hardware cost</b>, if new sets must be bought: Raspberry Pis, cooling, storage and power about US$230; converters and cables about US$40; two used CRTs US$0 to 160. Total roughly US$270 to 430.</p>
-  <p class="small" style="margin-top:.3in"><b>Watch it:</b> <span class="mono">{{VIDEO_URL}}</span><br><b>Code and documentation:</b> <span class="mono">{{REPO_URL}}</span></p>
-  <p class="small"><b>Contact:</b> {{ARTIST}} · <span class="mono">{{CONTACT}}</span></p>
+  <p class="small" style="margin-top:.3in"><b>Watch it:</b> <a class="mono" href="https://{{VIDEO_URL}}">{{VIDEO_URL}}</a><br><b>Code and documentation:</b> <a class="mono" href="https://{{REPO_URL}}">{{REPO_URL}}</a></p>
+  <p class="small"><b>Contact:</b> {{ARTIST}} · <a class="mono" href="https://{{CONTACT}}">{{CONTACT}}</a></p>
   <p class="small" style="opacity:.6;margin-top:.3in">Head model: "Basic head mesh" by kavabanga (BlendSwap, CC0). Language model: Llama 3.2 3B via Ollama. Voices: Piper (on the Pis).</p>
   <div class="folio"><span>Interminable Nothingness</span><span>5</span></div>
 </section>

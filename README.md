@@ -6,9 +6,11 @@
 
 A durational installation for two CRTs · Checo Cadena · 2026
 
-<img src="media/hero.gif" alt="Two low-poly heads in inverse wireframe, one black on white, one white on black, talking to each other" width="100%">
+<a href="https://youtu.be/gEKA4qlmvx4"><img src="media/hero.gif" alt="Two low-poly heads in inverse wireframe, one black on white, one white on black, talking to each other. Click to watch the video." width="100%"></a>
 
-[**Watch the videos**](https://github.com/checocadena/interminable-nothingness/releases/latest) · [**Read the proposal (PDF)**](proposal/Interminable-Nothingness-proposal.pdf) · [**Build it**](docs/SETUP.md)
+[**▶ Watch on YouTube**](https://youtu.be/gEKA4qlmvx4) · [**Read the proposal (PDF)**](proposal/Interminable-Nothingness-proposal.pdf) · [**Build it**](docs/SETUP.md)
+
+<sub>Full-quality downloads, including the 4:3 versions for each CRT, are in the [releases](https://github.com/checocadena/interminable-nothingness/releases/latest).</sub>
 
 </div>
 
