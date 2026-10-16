@@ -450,18 +450,12 @@ function drawPanel(role, X, Y, PW, PH, t) {
     g.fill(); g.stroke();
   }
 
-  if (captions && a.text) {
+  // Captions: on a single screen they sit on the picture; side by side they go
+  // in the dark band under each screen, like film subtitles (drawn below,
+  // outside this panel's clip).
+  if (captions && a.text && view !== 'both') {
     const fs = Math.max(10, Math.round(u * 0.028));
-    const words = a.text.toUpperCase().split(/\s+/).slice(0, a.speak > 0.5 ? a.shown : undefined);
-    g.font = `${fs}px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-    const lines = [], maxW = PW * 0.8;
-    let cur = '';
-    for (const w of words) {
-      const tryLine = cur ? cur + ' ' + w : w;
-      if (g.measureText(tryLine).width > maxW && cur) { lines.push(cur); cur = w; } else cur = tryLine;
-    }
-    if (cur) lines.push(cur);
-    const lh = fs * 1.75, last = lines.slice(-3);
+    const lh = fs * 1.75, last = captionLines(a, fs, PW * 0.8).slice(-3);
     last.forEach((l, i) => {
       const by = Y + PH * 0.93 - (last.length - 1 - i) * lh, w = g.measureText(l).width;
       g.fillStyle = ink.bg; g.fillRect(cx - w / 2 - fs * 0.5, by - fs * 1.15, w + fs, fs * 1.5);
@@ -485,6 +479,26 @@ function drawPanel(role, X, Y, PW, PH, t) {
     }
   }
   g.restore();
+
+  if (captions && a.text && view === 'both') {
+    const fs = Math.max(10, Math.round(u * 0.03)), lh = fs * 1.45;
+    g.fillStyle = '#e8e8e8';
+    captionLines(a, fs, PW * 0.94).slice(-3).forEach((l, i) => g.fillText(l, cx, Y + PH + fs * 1.7 + i * lh));
+  }
+}
+
+// The words of a's current line revealed so far, upper case, wrapped to maxW.
+function captionLines(a, fs, maxW) {
+  const words = a.text.toUpperCase().split(/\s+/).slice(0, a.speak > 0.5 ? a.shown : undefined);
+  g.font = `${fs}px ${MONO}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const tryLine = cur ? cur + ' ' + w : w;
+    if (g.measureText(tryLine).width > maxW && cur) { lines.push(cur); cur = w; } else cur = tryLine;
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }
 
 let last = performance.now();
