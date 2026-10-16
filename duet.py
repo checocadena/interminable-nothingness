@@ -65,6 +65,7 @@ SHARED_RULES = (
     "You and your counterpart see life in opposite ways. Never simply agree: "
     "challenge or contradict what they just said, then make your own case. "
     "No lists, no emoji, no stage directions, no quotation marks, no name labels. "
+    "Never call your counterpart by name, and never name yourself. "
     "Respond to what your counterpart just said, then add a NEW thought, image, "
     "or question. Never repeat yourself. Never wrap up and never say goodbye."
 )
@@ -385,6 +386,22 @@ def _close(s):
     return s if not s or s[-1] in ".!?…" else s + "."
 
 
+NAME = r"(?:DARK|LIGHT|Dark|Light)"
+
+
+def strip_names(t):
+    """Drop LIGHT or DARK used as a name ("Hello DARK,", "a beautiful image,
+    DARK, but", "my dark friend"). The words dark and light as ordinary words
+    are left alone; they are half the conversation."""
+    t = re.sub(r",?\s*\bmy\s+(?:dear\s+)?(?:dark|light)\s+friend\b", "", t, flags=re.I)
+    t = re.sub(rf",\s*{NAME}\s*(?=[,.!?;:])", "", t)                      # ", DARK," mid-line
+    t = re.sub(rf"\b(Hello|Hi|Hey|Oh|Ah|Yes|No|Well|And|But)\s+{NAME}\b", r"\1", t)  # "Hello DARK"
+    t = re.sub(rf"(^|[.!?]\s+){NAME},\s*(\w)",                             # "DARK, I think..."
+               lambda m: m.group(1) + m.group(2).upper(), t)
+    t = re.sub(r"\s+([,.!?;:])", r"\1", t)
+    return re.sub(r",\s*([.!?])", r"\1", t)
+
+
 def clean(text, truncated=False, max_words=MAX_WORDS):
     """Tidy model output for speech: short, whole sentences, no fragments.
     `truncated` means the model was cut off by num_predict mid-thought."""
@@ -394,6 +411,7 @@ def clean(text, truncated=False, max_words=MAX_WORDS):
     t = re.sub(r"[*_#`~>|\"“”«»]", "", t)                  # markdown and quotes
     t = re.sub(r"(?<!\w)['‘’]|['‘’](?!\w)", "", t)         # single quotes, keep apostrophes
     t = EMOJI.sub("", t)
+    t = strip_names(t)
     t = re.sub(r"\s+", " ", t).strip(" -–—:;,")
     t = re.sub(r"\s*(\.{2,}|…)$", ".", t)                  # a trailing ellipsis ends it
     t = re.sub(r"\s*(\.{2,}|…)\s*", ", ", t)               # one mid-line is just a pause
